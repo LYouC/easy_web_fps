@@ -1,0 +1,21 @@
+{
+  "name": "easy_game",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/three": "^0.185.4",
+    "three": "^0.185.1",
+    "vite": "^8.2.2"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

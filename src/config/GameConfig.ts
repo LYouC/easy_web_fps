@@ -1,0 +1,53 @@
+export const GameConfig = {
+  PLAYER: {
+    MAX_HP: 100,
+    WALK_SPEED: 5,
+    RUN_SPEED: 9,
+    JUMP_FORCE: 8,
+    GRAVITY: 20,
+    HEIGHT: 1.8,
+    EYE_HEIGHT: 1.6,
+  },
+  WEAPON: {
+    RIFLE_DAMAGE: 25,
+    RIFLE_FIRE_RATE: 0.12,
+    RIFLE_MAG_SIZE: 30,
+    RIFLE_RELOAD_TIME: 2.0,
+    RIFLE_RECOIL: 0.02,
+  },
+  ENEMY: {
+    NORMAL_HP: 30,
+    NORMAL_SPEED: 3,
+    NORMAL_DAMAGE: 8,
+    NORMAL_FIRE_RATE: 1.5,
+    NORMAL_POINTS: 100,
+    HEAVY_HP: 80,
+    HEAVY_SPEED: 1.5,
+    HEAVY_DAMAGE: 15,
+    HEAVY_FIRE_RATE: 2.5,
+    HEAVY_POINTS: 250,
+    ELITE_HP: 50,
+    ELITE_SPEED: 2.5,
+    ELITE_DAMAGE: 12,
+    ELITE_FIRE_RATE: 1.0,
+    ELITE_POINTS: 200,
+  },
+  WAVE: {
+    BASE_ENEMY_COUNT: 3,
+    ENEMY_COUNT_INCREMENT: 2,
+    BREAK_DURATION: 3.0,
+    SPAWN_RADIUS: 40,
+  },
+  PICKUP: {
+    AMMO_AMOUNT: 15,
+    MAP_SPAWN_INTERVAL: 10.0,
+    MAX_MAP_PICKUPS: 5,
+    PICKUP_RADIUS: 1.5,
+  },
+  WORLD: {
+    MAP_SIZE: 100,
+  },
+  DEBUG: {
+    COLLIDER_VIS_KEY: 'Backquote',
+  },
+} as const;
