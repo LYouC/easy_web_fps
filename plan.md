@@ -9,7 +9,7 @@ Build a simple FPS game with Three.js: wave-based enemy spawning, ammo pickup, s
 - **Language**: TypeScript
 - **Build**: Vite
 - **3D**: Three.js
-- **Controls**: PointerLockControls (three/examples)
+- **Controls**: Custom pointer-lock FPS camera
 - **Physics**: Custom simple collision (AABB + ground detection), no physics engine
 - **No external game framework**
 
@@ -161,15 +161,48 @@ Key events:
 **Goal**: Enemies spawn in waves, chase player, shoot, can be killed.
 
 **Tasks**:
-- [ ] EnemyBase.ts — HP, type, mesh, state (idle/chase/attack/dead)
-- [ ] EnemyTypes.ts — Normal (low HP, fast), Heavy (high HP, slow), Elite (medium, accurate)
-- [ ] EnemyAI.ts — chase player, stop & shoot when in range, simple cover seeking
-- [ ] CoverSystem.ts — raycast from enemy to player, if blocked = in cover
-- [ ] DamageSystem.ts — apply damage, kill detection, emit enemy:died
-- [ ] WaveManager.ts — wave N spawns N*2+1 enemies, short break between waves
-- [ ] HUD update — HP bar, score, wave number
+- [x] EnemyBase.ts — HP, type, mesh, state (spawning/idle/chase/attack/dead)
+- [x] EnemyTypes.ts — Normal (low HP, fast), Heavy (high HP, slow), Elite (medium, accurate)
+- [x] EnemyAI.ts — chase player, stop and shoot in range, line of sight, obstacle steering, separation
+- [x] CoverSystem.ts — raycast from enemy to player; world AABB obstruction blocks damage
+- [x] DamageSystem.ts — apply damage, kill detection, score settlement, player damage events
+- [x] WaveManager.ts — wave N spawns N*2+1 enemies, short break between waves
+- [x] HUD update — HP bar, score, wave number, damage flash, wave announcements
 
 **Verify**: Enemies spawn, chase, shoot (damage player), player can kill them, waves progress.
+
+**Implementation notes**:
+- Normal, Heavy, and Elite definitions read all combat, movement, geometry, feedback, and audio tuning from `GameConfig.ts`.
+- Enemy state transitions require range and unobstructed line of sight; chase steering slides around AABBs and applies neighbor separation to prevent full overlap.
+- In-range enemies enter a visible aim state before their first shot. Reaction delays are 0.65s Normal, 1.1s Heavy, and 0.35s Elite, and reset after range or line of sight is lost.
+- Enemy meshes expose head, body, and armor hit zones. Configured ×2/×1/×0.7 multipliers are applied by DamageSystem before HP settlement.
+- Enemy fire follows `enemy:attackRequested` → `combat:enemyAttackResolved` → `player:damageRequested`, keeping cover and damage resolution independent.
+- Player transforms and world collision queries use EventBus request events, so enemy/combat modules do not hold player or collider-module references.
+- Wave 1 contains 3 enemies and each wave adds 2. Heavy slots begin in wave 2 and Elite slots in wave 3; a cleared wave advances after a 3-second break.
+- Enemy spawn scaling, hit emissive flash/health bar, attack tracer/muzzle light, death collapse, and synthesized Web Audio cues provide feedback without new dependencies.
+- HUD retains the P2 teal glass-panel language and adds HP, score, wave, damage vignette, and incoming/complete notices.
+- ESC opens a pause overlay with Resume and Restart controls. Player death exits pointer lock and opens an Eliminated overlay with final score, reached wave, and a full-run restart action.
+- AI and wave timers pause while pointer lock is released or the player is dead.
+
+**Automated verification (2026-09-04)**:
+- `npm run build`: passed (`tsc` strict type-check and Vite production bundle).
+- `git diff --check`: passed with only LF-to-CRLF working-copy notices.
+- Source scan found no `any` types.
+- Node config smoke check passed for wave counts 3/5/7/9 and positive Normal/Heavy/Elite damage values.
+- Detail smoke check passed for body/head/armor damage 25/50/17.5, distinct positive reaction delays, and required pause/death overlay controls.
+- Known non-blocking warnings: Vite config module-format forward-compatibility and the existing Three.js bundle chunk exceeding 500 kB.
+
+**Manual verification steps**:
+1. Lock the pointer and verify wave 1 announces and spawns three green Normal enemies.
+2. Observe chase, spacing, attack cadence, red attack tracers, and HUD HP loss.
+3. Break line of sight with each test building and verify enemy rays hit cover without player damage.
+4. Kill each enemy type and verify health/hit/death feedback plus scores of 100, 250, and 200.
+5. Clear waves and verify the 3-second completion break, +2 enemies per wave, Heavy in wave 2, and Elite in wave 3.
+6. Pause with ESC during combat and a wave break; verify simulation timers freeze and state resumes intact.
+7. Use both pause-overlay buttons: Resume must restore pointer lock and Restart must return to a fresh wave-1 run.
+8. Verify hit-zone damage: Normal takes 25 body damage, 50 head damage, and Heavy armor takes 17.5 damage from the 25-damage rifle.
+9. Verify Normal/Heavy/Elite wait approximately 0.65/1.1/0.35 seconds after first gaining an in-range clear sightline, then use their configured 1.5/2.5/1.0-second firing intervals.
+10. Die after earning score; verify the Eliminated overlay reports the current score/wave and its restart button resets HP, ammo, score, enemies, and wave state.
 
 ---
 
@@ -183,9 +216,17 @@ Key events:
 - [ ] MapBuilder.ts — place buildings (boxes with textures), register colliders
 - [ ] BuildingTemplates.ts — wall, low wall, pillar, room configs
 - [ ] EnemyAI update — use buildings as cover points
-- [ ] AudioManager — hit sound, pickup sound, enemy death sound
+- [ ] AudioManager — pickup collection sound (enemy hit/death cues completed in P3)
 
 **Verify**: Buildings provide cover, ammo boxes appear on map, enemies drop ammo, can pick up.
+
+**Workload assessment**:
+- Complexity: medium-high; approximately 8-12 touched files and three cohesive implementation slices.
+- Pickup slice: create the pickup classes/spawner and an EventBus reserve-ammo grant path, including timed map spawns, enemy kill drops, proximity collection, cleanup, and clear feedback.
+- World slice: extract the current arena boxes from `MainArena` into reusable templates/builder output without changing player grounding, collision, ray obstruction, or debug visualization.
+- AI slice: publish cover points through EventBus and add bounded cover selection/re-evaluation without regressing reaction delays, separation, pause behavior, or wave progression.
+- Primary risks: pickups spawning inside geometry, duplicate EventBus listeners after reset, enemies oscillating between cover points, and collider/render meshes becoming inconsistent during extraction.
+- Recommended execution: three focused sessions following the project scope rule, then one end-to-end manual pass.
 
 ---
 
@@ -195,11 +236,11 @@ Key events:
 
 **Tasks**:
 - [ ] MainMenu.ts — start button, basic title
-- [ ] DeathScreen.ts — final score, restart button
+- [x] Death UI — final score, reached wave, and restart button (implemented during P3; optional class extraction remains)
 - [ ] GameState machine — menu → playing → dead → menu
 - [ ] Visual polish — fog, ambient lighting, better textures
 - [ ] GameConfig.ts — all magic numbers extracted
-- [ ] Final HUD polish — wave announcement, damage flash
+- [x] Final HUD polish — wave announcement and damage flash
 
 **Verify**: Full game loop: start → play → die → see score → restart.
 

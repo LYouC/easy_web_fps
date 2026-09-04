@@ -80,7 +80,7 @@
         border-color: #aaa;
       }
 
-      #pause-screen {
+      #pause-screen, #death-screen {
         position: fixed;
         top: 0;
         left: 0;
@@ -90,22 +90,111 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.68);
         z-index: 90;
         pointer-events: auto;
-        cursor: pointer;
+        backdrop-filter: blur(5px);
       }
 
-      #pause-screen p {
-        color: #ccc;
-        font-size: 24px;
+      #death-screen {
+        z-index: 110;
+        background: radial-gradient(circle, rgba(42, 9, 12, 0.76), rgba(0, 0, 0, 0.92));
+      }
+
+      .modal-panel {
+        width: min(420px, calc(100vw - 40px));
+        padding: 34px 38px;
+        border: 1px solid rgba(173, 218, 204, 0.32);
+        border-top: 3px solid #83e1c0;
+        background: linear-gradient(135deg, rgba(9, 18, 22, 0.94), rgba(18, 33, 36, 0.86));
+        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.48);
+        text-align: center;
+        clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+      }
+
+      #death-screen .modal-panel {
+        border-color: rgba(255, 111, 92, 0.4);
+        border-top-color: #ff6f5c;
+      }
+
+      .modal-kicker {
+        color: #83e1c0;
+        font-size: 10px;
+        letter-spacing: 4px;
+      }
+
+      #death-screen .modal-kicker {
+        color: #ff846f;
+      }
+
+      .modal-panel h2 {
+        margin: 10px 0 8px;
+        color: #eef7f4;
+        font-size: 34px;
+        font-weight: 300;
+        letter-spacing: 6px;
+      }
+
+      .modal-description {
+        margin-bottom: 24px;
+        color: #829b97;
+        font-size: 12px;
+        letter-spacing: 1.4px;
+      }
+
+      .death-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        margin: 24px 0;
+        background: rgba(131, 225, 192, 0.16);
+      }
+
+      .death-stats div {
+        display: grid;
+        gap: 7px;
+        padding: 16px;
+        background: rgba(8, 15, 18, 0.92);
+      }
+
+      .death-stats span {
+        color: #718b87;
+        font-size: 9px;
         letter-spacing: 2px;
       }
 
-      #pause-screen .hint {
-        color: #666;
-        font-size: 14px;
-        margin-top: 12px;
+      .death-stats strong {
+        color: #eef7f4;
+        font-size: 23px;
+        font-weight: 400;
+        letter-spacing: 2px;
+      }
+
+      .menu-actions {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+      }
+
+      .menu-button {
+        min-width: 138px;
+        padding: 11px 18px;
+        border: 1px solid #83e1c0;
+        background: #83e1c0;
+        color: #10201f;
+        font: 700 11px 'Courier New', monospace;
+        letter-spacing: 1.8px;
+        cursor: pointer;
+      }
+
+      .menu-button.secondary {
+        border-color: rgba(173, 218, 204, 0.42);
+        background: transparent;
+        color: #c0d5d0;
+      }
+
+      .menu-button:hover {
+        filter: brightness(1.16);
       }
     </style>
   </head>
@@ -119,8 +208,27 @@
       <button id="start-btn">PLAY</button>
     </div>
     <div id="pause-screen">
-      <p>PAUSED</p>
-      <p class="hint">Click to resume</p>
+      <div class="modal-panel">
+        <span class="modal-kicker">TACTICAL HOLD</span>
+        <h2>PAUSED</h2>
+        <p class="modal-description">Combat simulation suspended</p>
+        <div class="menu-actions">
+          <button id="resume-btn" class="menu-button">RESUME</button>
+          <button id="pause-reset-btn" class="menu-button secondary">RESTART</button>
+        </div>
+      </div>
+    </div>
+    <div id="death-screen">
+      <div class="modal-panel">
+        <span class="modal-kicker">SYSTEM FAILURE</span>
+        <h2>ELIMINATED</h2>
+        <p class="modal-description">Your combat run has ended</p>
+        <div class="death-stats">
+          <div><span>FINAL SCORE</span><strong id="death-score">000000</strong></div>
+          <div><span>WAVE REACHED</span><strong id="death-wave">00</strong></div>
+        </div>
+        <button id="death-reset-btn" class="menu-button">RESTART RUN</button>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

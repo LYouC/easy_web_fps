@@ -22,3 +22,89 @@ export interface ShotHitEvent {
   object: THREE.Object3D;
   damage: number;
 }
+
+export type EnemyType = 'normal' | 'heavy' | 'elite';
+export type EnemyState = 'spawning' | 'idle' | 'chase' | 'aim' | 'attack' | 'dead';
+export type EnemyHitZone = 'head' | 'body' | 'armor';
+
+export interface EnemySpawnedEvent {
+  enemyId: string;
+  type: EnemyType;
+  maxHp: number;
+  points: number;
+}
+
+export interface EnemyDamagedEvent {
+  enemyId: string;
+  damage: number;
+  hp: number;
+  maxHp: number;
+  hitPoint: THREE.Vector3;
+  hitZone: EnemyHitZone;
+}
+
+export interface EnemyDiedEvent {
+  enemyId: string;
+  type: EnemyType;
+  points: number;
+  position: THREE.Vector3;
+}
+
+export interface EnemyAttackRequestEvent {
+  enemyId: string;
+  origin: THREE.Vector3;
+  target: THREE.Vector3;
+  damage: number;
+  accuracy: number;
+}
+
+export interface EnemyAttackResolvedEvent extends EnemyAttackRequestEvent {
+  blocked: boolean;
+  impactPoint: THREE.Vector3;
+}
+
+export interface PlayerHealthEvent {
+  hp: number;
+  maxHp: number;
+  damage: number;
+}
+
+export interface PlayerTransformEvent {
+  position: THREE.Vector3;
+}
+
+export interface WaveStartedEvent {
+  wave: number;
+  enemyCount: number;
+}
+
+export interface WaveCompletedEvent {
+  wave: number;
+  nextWave: number;
+  delay: number;
+}
+
+export interface ScoreChangedEvent {
+  score: number;
+  added: number;
+}
+
+export interface WorldRaycastHit {
+  hit: true;
+  point: THREE.Vector3;
+  id: string;
+}
+
+export interface WorldRaycastRequestEvent {
+  origin: THREE.Vector3;
+  direction: THREE.Vector3;
+  maxDistance: number;
+  result: WorldRaycastHit | null;
+}
+
+export interface WorldAreaClearRequestEvent {
+  position: THREE.Vector3;
+  radius: number;
+  height: number;
+  clear: boolean;
+}

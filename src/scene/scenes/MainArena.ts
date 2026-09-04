@@ -12,6 +12,11 @@ import { WeaponView } from '@/weapons/WeaponView';
 import { RaycastShooter } from '@/combat/RaycastShooter';
 import { HUD } from '@/ui/HUD';
 import { AudioManager } from '@/audio/AudioManager';
+import { DamageSystem } from '@/combat/DamageSystem';
+import { CoverSystem } from '@/combat/CoverSystem';
+import { WaveManager } from '@/enemies/WaveManager';
+import { EventBus } from '@/core/EventBus';
+import type { PlayerTransformEvent } from '@/core/GameEvents';
 
 export class MainArena implements SceneBase {
   private scene: THREE.Scene;
@@ -27,6 +32,10 @@ export class MainArena implements SceneBase {
   private raycastShooter: RaycastShooter;
   private hud: HUD;
   private audioManager: AudioManager;
+  private damageSystem: DamageSystem;
+  private coverSystem: CoverSystem;
+  private waveManager: WaveManager;
+  private readonly eventBus: EventBus;
 
   constructor(inputManager: InputManager) {
     this.scene = new THREE.Scene();
@@ -43,6 +52,7 @@ export class MainArena implements SceneBase {
     this.scene.add(this.camera);
 
     this.inputManager = inputManager;
+    this.eventBus = EventBus.getInstance();
     this.colliderManager = new ColliderManager();
 
     this.setupLighting();
@@ -57,6 +67,9 @@ export class MainArena implements SceneBase {
     this.raycastShooter = new RaycastShooter(this.scene);
     this.weaponView = new WeaponView(this.camera);
     this.audioManager = new AudioManager();
+    this.damageSystem = new DamageSystem();
+    this.coverSystem = new CoverSystem();
+    this.waveManager = new WaveManager(this.scene);
     this.rifle = new Rifle(this.camera, this.inputManager);
   }
 
@@ -159,6 +172,11 @@ export class MainArena implements SceneBase {
   }
 
   unload(): void {
+    this.waveManager.dispose();
+    this.coverSystem.dispose();
+    this.damageSystem.dispose();
+    this.player.dispose();
+    this.colliderManager.dispose();
     this.weaponView.dispose();
     this.raycastShooter.dispose();
     this.hud.dispose();
@@ -169,10 +187,18 @@ export class MainArena implements SceneBase {
 
   update(delta: number): void {
     this.fpsCamera.update();
-    this.movement.update(delta);
-    this.rifle.update(delta);
+    const combatActive = this.inputManager.isPointerLocked() && this.player.isAlive();
+    if (combatActive) {
+      this.movement.update(delta);
+      this.rifle.update(delta);
+    }
     this.weaponView.update(delta);
     this.raycastShooter.update(delta);
+    const transform: PlayerTransformEvent = {
+      position: this.camera.getWorldPosition(new THREE.Vector3()),
+    };
+    this.eventBus.emit('player:transformChanged', transform);
+    this.waveManager.update(delta, combatActive);
     this.debug.update();
   }
 }

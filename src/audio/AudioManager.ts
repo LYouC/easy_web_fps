@@ -9,6 +9,10 @@ export class AudioManager {
     this.eventBus = EventBus.getInstance();
     this.eventBus.on('player:shoot', this.onShoot);
     this.eventBus.on('weapon:dryFire', this.onDryFire);
+    this.eventBus.on('enemy:attacked', this.onEnemyAttack);
+    this.eventBus.on('enemy:damaged', this.onEnemyHit);
+    this.eventBus.on('enemy:died', this.onEnemyDeath);
+    this.eventBus.on('enemy:spawned', this.onEnemySpawn);
   }
 
   private getContext(): AudioContext {
@@ -63,9 +67,44 @@ export class AudioManager {
     oscillator.stop(now + 0.035);
   };
 
+  private playTone(type: OscillatorType, start: number, end: number, duration: number, volume: number): void {
+    const context = this.getContext();
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(start, now);
+    oscillator.frequency.exponentialRampToValueAtTime(end, now + duration);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+  }
+
+  private onEnemyAttack = (): void => {
+    this.playTone('square', GameConfig.ENEMY.ATTACK_FREQUENCY_START, GameConfig.ENEMY.ATTACK_FREQUENCY_END, GameConfig.ENEMY.ATTACK_DURATION, GameConfig.ENEMY.ATTACK_VOLUME);
+  };
+
+  private onEnemyHit = (): void => {
+    this.playTone('triangle', GameConfig.ENEMY.HIT_FREQUENCY, GameConfig.ENEMY.HIT_FREQUENCY, GameConfig.ENEMY.HIT_DURATION, GameConfig.ENEMY.HIT_VOLUME);
+  };
+
+  private onEnemyDeath = (): void => {
+    this.playTone('sawtooth', GameConfig.ENEMY.DEATH_FREQUENCY_START, GameConfig.ENEMY.DEATH_FREQUENCY_END, GameConfig.ENEMY.DEATH_DURATION_AUDIO, GameConfig.ENEMY.DEATH_VOLUME);
+  };
+
+  private onEnemySpawn = (): void => {
+    this.playTone('sine', GameConfig.ENEMY.SPAWN_FREQUENCY_START, GameConfig.ENEMY.SPAWN_FREQUENCY_END, GameConfig.ENEMY.SPAWN_DURATION_AUDIO, GameConfig.ENEMY.SPAWN_VOLUME);
+  };
+
   dispose(): void {
     this.eventBus.off('player:shoot', this.onShoot);
     this.eventBus.off('weapon:dryFire', this.onDryFire);
+    this.eventBus.off('enemy:attacked', this.onEnemyAttack);
+    this.eventBus.off('enemy:damaged', this.onEnemyHit);
+    this.eventBus.off('enemy:died', this.onEnemyDeath);
+    this.eventBus.off('enemy:spawned', this.onEnemySpawn);
     if (this.context) void this.context.close();
     this.context = null;
   }

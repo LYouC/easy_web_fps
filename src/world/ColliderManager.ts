@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { EventBus } from '@/core/EventBus';
+import type { WorldAreaClearRequestEvent, WorldRaycastHit, WorldRaycastRequestEvent } from '@/core/GameEvents';
 
 export interface AABB {
   min: THREE.Vector3;
@@ -18,6 +20,25 @@ export interface CollisionResult {
 
 export class ColliderManager {
   private colliders: Map<string, ColliderEntry> = new Map();
+  private readonly eventBus: EventBus;
+
+  constructor() {
+    this.eventBus = EventBus.getInstance();
+    this.eventBus.on('world:raycastRequested', this.onRaycastRequested);
+    this.eventBus.on('world:areaClearRequested', this.onAreaClearRequested);
+  }
+
+  private onRaycastRequested = (...args: unknown[]): void => {
+    const request = args[0] as WorldRaycastRequestEvent | undefined;
+    if (!request) return;
+    request.result = this.raycast(request.origin, request.direction, request.maxDistance);
+  };
+
+  private onAreaClearRequested = (...args: unknown[]): void => {
+    const request = args[0] as WorldAreaClearRequestEvent | undefined;
+    if (!request) return;
+    request.clear = this.isAreaClear(request.position, request.radius, request.height);
+  };
 
   add(id: string, box: AABB, isGround: boolean = false): void {
     this.colliders.set(id, { id, box, isGround });
@@ -119,7 +140,7 @@ export class ColliderManager {
     return { position: resolved, onGround };
   }
 
-  raycast(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number): { hit: boolean; point: THREE.Vector3; id: string } | null {
+  raycast(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number): WorldRaycastHit | null {
     const ray = new THREE.Ray(origin, direction.normalize());
     let closest: { distance: number; point: THREE.Vector3; id: string } | null = null;
 
@@ -140,5 +161,23 @@ export class ColliderManager {
       return { hit: true, point: closest.point, id: closest.id };
     }
     return null;
+  }
+
+  private isAreaClear(position: THREE.Vector3, radius: number, height: number): boolean {
+    for (const { box } of this.colliders.values()) {
+      const closestX = Math.max(box.min.x, Math.min(position.x, box.max.x));
+      const closestZ = Math.max(box.min.z, Math.min(position.z, box.max.z));
+      const dx = position.x - closestX;
+      const dz = position.z - closestZ;
+      const overlapsHeight = position.y < box.max.y && position.y + height > box.min.y;
+      if (overlapsHeight && dx * dx + dz * dz < radius * radius) return false;
+    }
+    return true;
+  }
+
+  dispose(): void {
+    this.eventBus.off('world:raycastRequested', this.onRaycastRequested);
+    this.eventBus.off('world:areaClearRequested', this.onAreaClearRequested);
+    this.clear();
   }
 }
