@@ -6,7 +6,7 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 
 ## Current Phase
 
-**P1 — Player Movement** ✅ Complete
+**P2 — Shooting** ✅ Complete · **Next: P3 — Enemies**
 
 ## Module Status
 
@@ -15,13 +15,13 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 | core/ | ✅ Done | Engine, EventBus, InputManager |
 | scene/ | ✅ Done | SceneBase, SceneManager, MainArena |
 | player/ | ✅ Done | FPSCamera, Movement, Player |
-| weapons/ | ⏳ Pending | WeaponBase, Rifle, WeaponView |
-| combat/ | ⏳ Pending | RaycastShooter, DamageSystem, CoverSystem |
+| weapons/ | ✅ Done | WeaponBase, Rifle, WeaponView |
+| combat/ | 🚧 Partial | RaycastShooter done; DamageSystem and CoverSystem pending P3 |
 | enemies/ | ⏳ Pending | EnemyBase, EnemyTypes, EnemyAI, WaveManager |
 | pickups/ | ⏳ Pending | PickupBase, AmmoPickup, PickupSpawner |
 | world/ | ✅ Done | ColliderManager |
-| ui/ | ⏳ Pending | HUD, MainMenu, DeathScreen |
-| audio/ | ⏳ Pending | AudioManager |
+| ui/ | 🚧 Partial | Shooting HUD done; HP/score/wave and screens pending |
+| audio/ | 🚧 Partial | Rifle shot/dry-fire audio done; remaining cues pending |
 | config/ | ✅ Done | GameConfig |
 
 ## Architecture Rules
@@ -89,3 +89,8 @@ npm run build      # Type-check + build, no errors
 | 2026-09-04 | performance.now() instead of THREE.Clock | Clock deprecated in Three.js 0.185+ |
 | 2026-09-04 | Backquote key for debug toggle | F3 conflicts with browser find shortcut |
 | 2026-09-04 | Pause overlay instead of start screen on ESC | Don't reset game state on pointer lock loss |
+| 2026-09-04 | Rifle uses 30-round magazine + 90 reserve | Provides a complete reload loop before pickup implementation |
+| 2026-09-04 | Procedural Web Audio rifle sound | Immediate shot feedback without adding asset dependencies |
+| 2026-09-04 | Player collision uses a vertical cylinder profile | Keeps the configured eye height on box tops and prevents low camera/gun clipping |
+| 2026-09-04 | Dual-layer hitscan tracers | A bright core plus additive glow gives readable shot direction without a persistent laser |
+| 2026-09-04 | Jump force increased to 10.5 | Clears the 2m training box with frame-step margin while 3m boxes remain inaccessible |

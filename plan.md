@@ -130,7 +130,7 @@ Key events:
 - [x] ColliderManager.ts — AABB collision for ground + walls
 - [x] Debug.ts — wireframe collision box visualization, Backquote toggle
 
-**Verify**: Can move around on ground, jump, run. Collision boxes visible via F3.
+**Verify**: Can move around on ground, jump onto the 2m training box, run, and view collision boxes via Backquote.
 
 ---
 
@@ -139,14 +139,20 @@ Key events:
 **Goal**: Can shoot with rifle, muzzle flash, recoil, ammo system.
 
 **Tasks**:
-- [ ] WeaponBase.ts — ammo, fire rate, damage, recoil params
-- [ ] Rifle.ts — rifle stats
-- [ ] WeaponView.ts — weapon model (box geometry), muzzle flash (sprite/light), recoil animation
-- [ ] RaycastShooter.ts — ray from camera center, hit detection
-- [ ] HUD.ts — crosshair, ammo count display
-- [ ] AudioManager.ts — shoot sound (Web Audio)
+- [x] WeaponBase.ts — ammo, fire rate, damage, recoil params
+- [x] Rifle.ts — rifle stats
+- [x] WeaponView.ts — weapon model (box geometry), muzzle flash (sprite/light), recoil animation
+- [x] RaycastShooter.ts — ray from camera center, hit detection
+- [x] HUD.ts — crosshair, ammo count display
+- [x] AudioManager.ts — shoot sound (Web Audio)
 
 **Verify**: Click to shoot, see muzzle flash + recoil, ammo decreases, crosshair + ammo shown.
+
+**Implementation notes**:
+- Rifle uses a 30-round magazine with 90 rounds in reserve and a 2-second reload.
+- Hitscan feedback includes a dual-layer gold/white tracer and a short surface impact flash.
+- The shooting HUD includes a reactive crosshair, ammo state, reload state, and low-ammo styling.
+- Rifle and dry-fire sounds are synthesized with Web Audio, so no external audio assets are required.
 
 ---
 

@@ -7,6 +7,11 @@ import { Player } from '@/player/Player';
 import { ColliderManager } from '@/world/ColliderManager';
 import { Debug } from '@/core/Debug';
 import { GameConfig } from '@/config/GameConfig';
+import { Rifle } from '@/weapons/Rifle';
+import { WeaponView } from '@/weapons/WeaponView';
+import { RaycastShooter } from '@/combat/RaycastShooter';
+import { HUD } from '@/ui/HUD';
+import { AudioManager } from '@/audio/AudioManager';
 
 export class MainArena implements SceneBase {
   private scene: THREE.Scene;
@@ -17,6 +22,11 @@ export class MainArena implements SceneBase {
   private player: Player;
   private colliderManager: ColliderManager;
   private debug: Debug;
+  private rifle: Rifle;
+  private weaponView: WeaponView;
+  private raycastShooter: RaycastShooter;
+  private hud: HUD;
+  private audioManager: AudioManager;
 
   constructor(inputManager: InputManager) {
     this.scene = new THREE.Scene();
@@ -30,6 +40,7 @@ export class MainArena implements SceneBase {
       1000
     );
     this.camera.position.set(0, GameConfig.PLAYER.EYE_HEIGHT, 0);
+    this.scene.add(this.camera);
 
     this.inputManager = inputManager;
     this.colliderManager = new ColliderManager();
@@ -42,6 +53,11 @@ export class MainArena implements SceneBase {
     this.movement = new Movement(this.camera, this.inputManager, this.fpsCamera, this.colliderManager);
     this.player = new Player();
     this.debug = new Debug(this.scene, this.colliderManager, this.inputManager);
+    this.hud = new HUD();
+    this.raycastShooter = new RaycastShooter(this.scene);
+    this.weaponView = new WeaponView(this.camera);
+    this.audioManager = new AudioManager();
+    this.rifle = new Rifle(this.camera, this.inputManager);
   }
 
   private setupLighting(): void {
@@ -79,6 +95,7 @@ export class MainArena implements SceneBase {
 
     const grid = new THREE.GridHelper(200, 40, 0x444444, 0x333333);
     grid.position.y = 0.01;
+    grid.userData.raycastIgnore = true;
     this.scene.add(grid);
   }
 
@@ -142,6 +159,10 @@ export class MainArena implements SceneBase {
   }
 
   unload(): void {
+    this.weaponView.dispose();
+    this.raycastShooter.dispose();
+    this.hud.dispose();
+    this.audioManager.dispose();
     this.debug.dispose();
     console.log('[MainArena] Scene unloaded');
   }
@@ -149,6 +170,9 @@ export class MainArena implements SceneBase {
   update(delta: number): void {
     this.fpsCamera.update();
     this.movement.update(delta);
+    this.rifle.update(delta);
+    this.weaponView.update(delta);
+    this.raycastShooter.update(delta);
     this.debug.update();
   }
 }

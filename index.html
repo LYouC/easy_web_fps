@@ -35,16 +35,6 @@
         z-index: 10;
       }
 
-      #crosshair {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: #fff;
-        font-size: 24px;
-        text-shadow: 0 0 4px rgba(0,0,0,0.8);
-      }
-
       #start-screen {
         position: fixed;
         top: 0;
@@ -121,11 +111,11 @@
   </head>
   <body>
     <div id="ui-overlay">
-      <div id="crosshair">+</div>
+      <div id="crosshair"></div>
     </div>
     <div id="start-screen">
       <h1>FPS GAME</h1>
-      <p>Click to start</p>
+      <p>WASD MOVE · SHIFT SPRINT · SPACE JUMP · LMB FIRE · R RELOAD</p>
       <button id="start-btn">PLAY</button>
     </div>
     <div id="pause-screen">

@@ -67,8 +67,10 @@ export class Movement {
 
     const resolved = this.colliderManager.resolveCollision(
       newPos,
+      this.camera.position,
       GameConfig.PLAYER.HEIGHT,
-      GameConfig.PLAYER.EYE_HEIGHT
+      GameConfig.PLAYER.EYE_HEIGHT,
+      GameConfig.PLAYER.RADIUS
     );
     this.camera.position.copy(resolved.position);
 

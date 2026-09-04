@@ -29,7 +29,7 @@ function startGame(): void {
   }
   engine.start();
   requestPointerLock();
-  console.log('[Game] P1 — Player movement active');
+  console.log('[Game] P2 — Shooting active');
 }
 
 function resumeGame(): void {

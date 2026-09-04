@@ -19,6 +19,7 @@ export class Debug {
     this.visible = true;
     this.group = new THREE.Group();
     this.group.name = '__debug_colliders__';
+    this.group.userData.raycastIgnore = true;
     this.scene.add(this.group);
 
     document.addEventListener('keydown', this.onKeyDown);
