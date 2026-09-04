@@ -6,7 +6,7 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 
 ## Current Phase
 
-**P3 — Enemies** ✅ Complete · **Next: P4 — Pickups & World**
+**P4 — Pickups & World** ✅ Complete · **Next: P5 — Polish**
 
 ## Module Status
 
@@ -17,11 +17,11 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 | player/ | ✅ Done | FPSCamera, Movement, Player |
 | weapons/ | ✅ Done | WeaponBase, Rifle, WeaponView |
 | combat/ | ✅ Done | RaycastShooter, DamageSystem, CoverSystem |
-| enemies/ | ✅ Done | EnemyBase, EnemyTypes, EnemyAI, WaveManager |
-| pickups/ | ⏳ Pending | PickupBase, AmmoPickup, PickupSpawner |
-| world/ | 🚧 Partial | ColliderManager done; MapBuilder and BuildingTemplates pending P4 |
+| enemies/ | ✅ Done | Tactical range control, strafing, sight memory, suppression cover, detailed models and weapons |
+| pickups/ | ✅ Done | Randomized map/drop ammo, PickupBase, AmmoPickup, PickupSpawner, spawn/amount rules |
+| world/ | ✅ Done | ColliderManager, MapBuilder, BuildingTemplates, spawn/cover queries |
 | ui/ | 🚧 Partial | Combat HUD plus pause/death restart overlays done; main menu polish pending P5 |
-| audio/ | 🚧 Partial | Rifle and enemy combat cues done; pickup/ambient cues pending |
+| audio/ | 🚧 Partial | Rifle, enemy combat, and pickup cues done; ambient cues pending P5 |
 | config/ | ✅ Done | GameConfig |
 
 ## Architecture Rules
@@ -102,16 +102,59 @@ npm run build      # Type-check + build, no errors
 | 2026-09-04 | Location reload is the combat-run reset boundary | Pause and death restart buttons rebuild every singleton, listener, scene object, score, wave, HP, and ammo state cleanly |
 | 2026-09-04 | Enemy hit zones use configured multipliers | Head ×2, body ×1, and Heavy armor ×0.7 make aiming choices meaningful without changing rifle base damage |
 | 2026-09-04 | First attack has a per-type reaction delay | Enemies enter a visible aim state after gaining an in-range line of sight; Normal/Heavy/Elite wait 0.65/1.1/0.35 seconds before firing |
+| 2026-09-04 | Ammo pickup acceptance is a synchronous EventBus request | WeaponBase alone caps and grants reserve ammo; a full reserve rejects collection so the pickup is not wasted |
+| 2026-09-04 | MapBuilder owns shared building source data | Each visible box, AABB, debug wireframe source, spawn point, and cover point derives from centralized world config |
+| 2026-09-04 | Cover points use world-owned claims | One enemy owns a point at a time; death, timeout, attack readiness, and disposal release claims without module references |
+| 2026-09-04 | Cover movement occupies post-shot downtime | Existing reaction and attack timing remain authoritative; bounded travel/hold/re-evaluation prevents cover search from stalling combat |
+| 2026-09-04 | Ammo drops randomize quantity and placement | Map boxes grant 15–30 and enemy drops grant 10–25 in five-round steps; kill drops scatter within 1.6m through legal-position retries |
+| 2026-09-04 | Enemy combat uses a preferred range band | Enemies advance at the edge of range, strafe while comfortable, retreat when crowded, and keep firing on the original cadence |
+| 2026-09-04 | Cover is pressure-driven | Damage, low health, or two attacks without repositioning trigger bounded cover search; lost sight uses a 3.2-second last-known-position memory |
+| 2026-09-04 | Enemy silhouettes include combat equipment | Legs, arms, waist gear, shoulder pads, backpack, and a visible rifle preserve typed hit zones while weapon meshes remain raycast-transparent |
+| 2026-09-04 | Darkness and difficulty selection are deferred to P5 | Lighting is already a P5 polish item; Easy/Normal/Hard selection is now explicitly scheduled with the menu/state work |
 
-## P4 Workload Assessment
+## P4 Verification
 
-**Complexity: medium-high.** Expected scope is roughly 8-12 files across `pickups/`, `world/`, `enemies/`, `weapons/`, `audio/`, `config/`, and `MainArena`, with the largest risks in preserving existing collision behavior and making enemy cover selection stable.
+- `npm run build` — passed on 2026-09-04 (`tsc` strict type-check + Vite production build).
+- `npm run test:p4` — passed randomized ammo ranges/steps, reserve cap/partial refill/full rejection, map bounds/spacing, building parity, spawn caps, tactical range/cover decisions, recoil bounds, and enemy weapon alignment.
+- `git diff --check` — passed; only expected LF-to-CRLF working-copy notices.
+- `rg -n "\bany\b" src scripts` — no `any` usage found.
+- The five migrated building boxes preserve the exact P3 positions, dimensions, colors, collider IDs, AABBs, shadows, and material tuning.
+- Non-blocking warning: the existing minified Three.js bundle remains over 500 kB.
+
+## P4 Manual Test Steps
+
+1. Start a run and wait ten active gameplay seconds; confirm a green/gold floating ammo box appears with a short spawn tone, then verify no more than five map pickups remain active.
+2. Spend reserve ammo, approach several boxes, and confirm each rises/fades once, plays the collect cue, grants a configured random amount (map 15–30, enemy 10–25), and updates the HUD immediately; kill drops should scatter slightly around death positions.
+3. Reach 150 reserve rounds with a full magazine and approach another box; confirm it remains available and ammo stays capped at 150.
+4. Kill enemies repeatedly; confirm drops occur at the configured 35% rate, never inside buildings or overlapping nearby pickups, and total active pickups never exceed ten.
+5. Toggle collision debug with Backquote and compare all five buildings; confirm every red wireframe exactly covers its visible box.
+6. Repeat the P3 movement regression: land on the 2m box, collide with building sides/undersides, and confirm no camera or weapon clipping regression.
+7. Shoot and receive enemy fire through/around each building; confirm hitscan and enemy attack rays remain blocked by the same AABBs as before migration.
+8. Observe several enemies near buildings after they fire; confirm they choose player-occluded cover points, do not fully stack or rapidly switch points, and resume chase/aim/fire after cover hold or timeout.
+9. Press ESC while a pickup spawn timer, collection animation, enemy cover movement, and wave break are in progress; confirm pickup and AI state freeze and resume without duplicate effects.
+10. Die and use both restart paths; confirm a fresh wave 1 starts with 30/90 ammo, no old pickups/enemies, no retained cover claims, and no duplicate sounds or HUD updates.
+
+## Post-P4 Combat Refinement Manual Test Steps
+
+1. Fight an enemy inside roughly half its attack range; confirm it backs away while keeping aim rather than walking into the player.
+2. Hold a medium engagement distance; confirm enemies alternate lateral strafing every 0.85–1.55 seconds and continue firing at their configured cadence.
+3. Break line of sight after being detected; confirm the enemy searches the last seen position for up to 3.2 seconds, then returns idle if it cannot reacquire the player.
+4. Damage an enemy or let it fire twice near a building; confirm it attempts a valid exclusive cover point, then returns to range control and attack.
+5. Inspect all three enemy types; confirm visible legs, arms, waist/shoulder gear, backpack, rifle receiver, stock, magazine, and barrel, with tracers beginning at the barrel tip.
+6. Fire the player rifle and confirm recoil is perceptibly stronger but still settles at the existing return speed.
+
+## P5 Workload Assessment
+
+**Complexity: high.** Expected scope is roughly 10–15 files across `core/`, `ui/`, `scene/`, `audio/`, `config/`, `main.ts`, and the HTML/CSS shell. The main risk is replacing page reloads and scattered overlay flags with a single state authority without leaking listeners or changing the verified P4 combat simulation.
 
 Recommended delivery sequence:
 
-1. Pickup loop — `PickupBase`, `AmmoPickup`, `PickupSpawner`, reserve-ammo event integration, kill drops, map spawns, and pickup feedback.
-2. World extraction — move arena geometry out of `MainArena` into `BuildingTemplates` and `MapBuilder` while preserving every registered AABB and traversal surface.
-3. Cover behavior and integration — expose cover points through EventBus, update EnemyAI selection/re-evaluation, add pickup audio, then run build and gameplay regression checks.
+1. State and difficulty foundation — add typed menu/playing/paused/dead transitions, Easy/Normal/Hard profiles, and EventBus state/difficulty events before changing presentation.
+2. UI lifecycle — extract the start, pause, and death overlays into owned UI classes; make restart rebuild a clean run without relying on `window.location.reload()`.
+3. Visual/audio polish — brighten combat readability, tune fog/lights/material variation, add subtle ambient audio, and keep all values in `GameConfig.ts`.
+4. Final regression — verify every difficulty profile, complete start→play→pause→death→restart flows, listener/resource cleanup, P3/P4 combat invariants, production build, and smoke checks.
+
+Defer optional asset pipelines, post-processing, additional weapons/maps, and save/progression systems unless explicitly added to P5 scope.
 
 ## P3 Verification
 

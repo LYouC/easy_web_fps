@@ -42,7 +42,7 @@ function startGame(): void {
   }
   engine.start();
   requestPointerLock();
-  console.log('[Game] P3 — Enemies active');
+  console.log('[Game] P4 — Pickups & World active');
 }
 
 function resumeGame(): void {

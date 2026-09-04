@@ -2,13 +2,15 @@ import * as THREE from 'three';
 import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
 import { InputManager } from '@/core/InputManager';
-import type { AmmoChangedEvent, PlayerShootEvent } from '@/core/GameEvents';
+import type { AmmoChangedEvent, AmmoPickupRequestEvent, PlayerShootEvent } from '@/core/GameEvents';
+import { AmmoReserve } from '@/weapons/AmmoReserve';
 
 export interface WeaponStats {
   damage: number;
   fireInterval: number;
   magazineSize: number;
   reserveAmmo: number;
+  maxReserveAmmo: number;
   reloadTime: number;
   range: number;
   recoil: number;
@@ -20,7 +22,7 @@ export abstract class WeaponBase {
   private readonly eventBus: EventBus;
   private readonly stats: WeaponStats;
   private magazine: number;
-  private reserve: number;
+  private reserve: AmmoReserve;
   private fireCooldown: number = 0;
   private reloadRemaining: number = 0;
   private reloadKeyDown: boolean = false;
@@ -35,10 +37,21 @@ export abstract class WeaponBase {
     this.inputManager = inputManager;
     this.stats = stats;
     this.magazine = stats.magazineSize;
-    this.reserve = stats.reserveAmmo;
+    this.reserve = new AmmoReserve(stats.reserveAmmo, stats.maxReserveAmmo);
     this.eventBus = EventBus.getInstance();
+    this.eventBus.on('pickup:ammoCollectionRequested', this.onAmmoCollectionRequested);
     this.emitAmmoChanged();
   }
+
+  private onAmmoCollectionRequested = (...args: unknown[]): void => {
+    const request = args[0] as AmmoPickupRequestEvent | undefined;
+    if (!request || request.accepted || this.reserve.isFull()) return;
+    const granted = this.reserve.add(request.amount);
+    if (granted <= 0) return;
+    request.accepted = true;
+    request.granted = granted;
+    this.emitAmmoChanged();
+  };
 
   update(delta: number): void {
     this.fireCooldown = Math.max(0, this.fireCooldown - delta);
@@ -69,7 +82,7 @@ export abstract class WeaponBase {
         this.eventBus.emit('weapon:dryFire');
         this.dryFireReady = false;
       }
-      if (this.reserve > 0) this.startReload();
+      if (!this.reserve.isEmpty()) this.startReload();
       return;
     }
 
@@ -98,7 +111,7 @@ export abstract class WeaponBase {
   }
 
   private startReload(): void {
-    if (this.reloadRemaining > 0 || this.magazine === this.stats.magazineSize || this.reserve === 0) return;
+    if (this.reloadRemaining > 0 || this.magazine === this.stats.magazineSize || this.reserve.isEmpty()) return;
     this.reloadRemaining = this.stats.reloadTime;
     this.eventBus.emit('weapon:reloadStarted', this.stats.reloadTime);
     this.emitAmmoChanged();
@@ -106,9 +119,8 @@ export abstract class WeaponBase {
 
   private finishReload(): void {
     const needed = this.stats.magazineSize - this.magazine;
-    const loaded = Math.min(needed, this.reserve);
+    const loaded = this.reserve.take(needed);
     this.magazine += loaded;
-    this.reserve -= loaded;
     this.eventBus.emit('weapon:reloadCompleted');
     this.emitAmmoChanged();
   }
@@ -116,10 +128,14 @@ export abstract class WeaponBase {
   private emitAmmoChanged(): void {
     const state: AmmoChangedEvent = {
       magazine: this.magazine,
-      reserve: this.reserve,
+      reserve: this.reserve.getAmount(),
       magazineSize: this.stats.magazineSize,
       reloading: this.reloadRemaining > 0,
     };
     this.eventBus.emit('weapon:ammoChanged', state);
+  }
+
+  dispose(): void {
+    this.eventBus.off('pickup:ammoCollectionRequested', this.onAmmoCollectionRequested);
   }
 }

@@ -1,11 +1,13 @@
 {
   "name": "easy_game",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:p4": "node --experimental-strip-types scripts/p4-smoke.ts"
   },
   "keywords": [],
   "author": "",

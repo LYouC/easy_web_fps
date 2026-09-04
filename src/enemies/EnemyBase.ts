@@ -16,12 +16,15 @@ export class EnemyBase {
   private readonly group = new THREE.Group();
   private readonly materials: THREE.MeshStandardMaterial[] = [];
   private readonly effects: TimedEffect[] = [];
+  private readonly legs: THREE.Mesh[] = [];
+  private readonly lastPosition = new THREE.Vector3();
   private readonly healthFill: THREE.Mesh;
   private hp: number;
   private state: EnemyState = 'spawning';
   private spawnRemaining: number = GameConfig.ENEMY.SPAWN_DURATION;
   private deathRemaining: number = GameConfig.ENEMY.DEATH_DURATION;
   private hitFlashRemaining = 0;
+  private walkPhase = 0;
 
   constructor(
     scene: THREE.Scene,
@@ -34,6 +37,7 @@ export class EnemyBase {
     this.hp = definition.maxHp;
     this.group.name = `enemy_${id}`;
     this.group.position.copy(position);
+    this.lastPosition.copy(position);
     this.group.scale.setScalar(GameConfig.ENEMY.SPAWN_MIN_SCALE);
     this.group.userData.enemyId = id;
     this.group.userData.enemyType = definition.type;
@@ -53,6 +57,8 @@ export class EnemyBase {
     head.position.y = GameConfig.ENEMY.HEAD_Y;
     this.group.add(head);
 
+    this.addHumanoidDetails();
+    this.addWeapon();
     if (definition.type === 'heavy') this.addHeavyArmor();
     if (definition.type === 'elite') this.addEliteCrest();
 
@@ -87,6 +93,115 @@ export class EnemyBase {
     return mesh;
   }
 
+  private createGearPart(geometry: THREE.BufferGeometry, hitZone: EnemyHitZone): THREE.Mesh {
+    const material = new THREE.MeshStandardMaterial({
+      color: GameConfig.ENEMY.GEAR_COLOR,
+      roughness: GameConfig.ENEMY.GEAR_ROUGHNESS,
+      metalness: GameConfig.ENEMY.GEAR_METALNESS,
+      transparent: true,
+    });
+    this.materials.push(material);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData.enemyId = this.id;
+    mesh.userData.enemyHitZone = hitZone;
+    return mesh;
+  }
+
+  private createEquipment(geometry: THREE.BufferGeometry, color: number): THREE.Mesh {
+    const material = new THREE.MeshStandardMaterial({
+      color,
+      roughness: GameConfig.ENEMY.GEAR_ROUGHNESS,
+      metalness: GameConfig.ENEMY.GEAR_METALNESS,
+      transparent: true,
+    });
+    this.materials.push(material);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData.raycastIgnore = true;
+    return mesh;
+  }
+
+  private addHumanoidDetails(): void {
+    const waist = this.createGearPart(
+      new THREE.BoxGeometry(GameConfig.ENEMY.WAIST_WIDTH, GameConfig.ENEMY.WAIST_HEIGHT, GameConfig.ENEMY.WAIST_DEPTH),
+      'body'
+    );
+    waist.position.y = GameConfig.ENEMY.WAIST_Y;
+    this.group.add(waist);
+
+    for (const sign of [-1, 1]) {
+      const leg = this.createPart(
+        new THREE.BoxGeometry(GameConfig.ENEMY.LEG_WIDTH, GameConfig.ENEMY.LEG_HEIGHT, GameConfig.ENEMY.LEG_DEPTH),
+        this.definition.color,
+        'body'
+      );
+      leg.position.set(GameConfig.ENEMY.LEG_X * sign, GameConfig.ENEMY.LEG_Y, 0);
+      this.group.add(leg);
+      this.legs.push(leg);
+
+      const arm = this.createPart(
+        new THREE.BoxGeometry(GameConfig.ENEMY.ARM_WIDTH, GameConfig.ENEMY.ARM_HEIGHT, GameConfig.ENEMY.ARM_DEPTH),
+        this.definition.color,
+        'body'
+      );
+      arm.position.set(GameConfig.ENEMY.ARM_X * sign, GameConfig.ENEMY.ARM_Y, GameConfig.ENEMY.ARM_Z);
+      this.group.add(arm);
+
+      const shoulder = this.createGearPart(
+        new THREE.BoxGeometry(GameConfig.ENEMY.SHOULDER_WIDTH, GameConfig.ENEMY.SHOULDER_HEIGHT, GameConfig.ENEMY.SHOULDER_DEPTH),
+        this.definition.type === 'heavy' ? 'armor' : 'body'
+      );
+      shoulder.position.set(GameConfig.ENEMY.ARM_X * sign, GameConfig.ENEMY.SHOULDER_Y, 0);
+      this.group.add(shoulder);
+    }
+
+    const backpack = this.createGearPart(
+      new THREE.BoxGeometry(GameConfig.ENEMY.BACKPACK_WIDTH, GameConfig.ENEMY.BACKPACK_HEIGHT, GameConfig.ENEMY.BACKPACK_DEPTH),
+      'body'
+    );
+    backpack.position.set(0, GameConfig.ENEMY.BACKPACK_Y, GameConfig.ENEMY.BACKPACK_Z);
+    this.group.add(backpack);
+  }
+
+  private addWeapon(): void {
+    const receiver = this.createEquipment(
+      new THREE.BoxGeometry(GameConfig.ENEMY.WEAPON_RECEIVER_WIDTH, GameConfig.ENEMY.WEAPON_RECEIVER_HEIGHT, GameConfig.ENEMY.WEAPON_RECEIVER_DEPTH),
+      GameConfig.ENEMY.WEAPON_COLOR
+    );
+    receiver.position.set(GameConfig.ENEMY.WEAPON_X, GameConfig.ENEMY.WEAPON_Y, GameConfig.ENEMY.WEAPON_Z);
+    this.group.add(receiver);
+
+    const barrel = this.createEquipment(
+      new THREE.CylinderGeometry(
+        GameConfig.ENEMY.WEAPON_BARREL_RADIUS,
+        GameConfig.ENEMY.WEAPON_BARREL_RADIUS,
+        GameConfig.ENEMY.WEAPON_BARREL_LENGTH,
+        GameConfig.ENEMY.WEAPON_BARREL_SEGMENTS
+      ),
+      GameConfig.ENEMY.WEAPON_COLOR
+    );
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(GameConfig.ENEMY.WEAPON_X, GameConfig.ENEMY.WEAPON_BARREL_Y, GameConfig.ENEMY.WEAPON_BARREL_Z);
+    this.group.add(barrel);
+
+    const stock = this.createEquipment(
+      new THREE.BoxGeometry(GameConfig.ENEMY.WEAPON_STOCK_WIDTH, GameConfig.ENEMY.WEAPON_STOCK_HEIGHT, GameConfig.ENEMY.WEAPON_STOCK_DEPTH),
+      GameConfig.ENEMY.WEAPON_ACCENT_COLOR
+    );
+    stock.position.set(GameConfig.ENEMY.WEAPON_X, GameConfig.ENEMY.WEAPON_Y, GameConfig.ENEMY.WEAPON_STOCK_Z);
+    this.group.add(stock);
+
+    const magazine = this.createEquipment(
+      new THREE.BoxGeometry(GameConfig.ENEMY.WEAPON_MAG_WIDTH, GameConfig.ENEMY.WEAPON_MAG_HEIGHT, GameConfig.ENEMY.WEAPON_MAG_DEPTH),
+      GameConfig.ENEMY.WEAPON_COLOR
+    );
+    magazine.position.set(GameConfig.ENEMY.WEAPON_X, GameConfig.ENEMY.WEAPON_MAG_Y, GameConfig.ENEMY.WEAPON_MAG_Z);
+    this.group.add(magazine);
+  }
+
   private addHeavyArmor(): void {
     const armor = this.createPart(
       new THREE.BoxGeometry(GameConfig.ENEMY.HEAVY_ARMOR_WIDTH, GameConfig.ENEMY.BODY_HEIGHT * GameConfig.ENEMY.HEAVY_ARMOR_HEIGHT_SCALE, GameConfig.ENEMY.BODY_DEPTH * GameConfig.ENEMY.HEAVY_ARMOR_DEPTH_SCALE),
@@ -114,6 +229,7 @@ export class EnemyBase {
     );
     background.position.y = GameConfig.ENEMY.HEALTH_BAR_Y;
     background.userData.raycastIgnore = true;
+    background.userData.billboard = true;
     const fill = new THREE.Mesh(
       new THREE.BoxGeometry(GameConfig.ENEMY.HEALTH_BAR_WIDTH, GameConfig.ENEMY.HEALTH_BAR_HEIGHT * GameConfig.ENEMY.HEALTH_FILL_HEIGHT_SCALE, GameConfig.ENEMY.HEALTH_BAR_DEPTH * GameConfig.ENEMY.HEALTH_FILL_DEPTH_SCALE),
       new THREE.MeshBasicMaterial({ color: this.definition.color })
@@ -150,6 +266,7 @@ export class EnemyBase {
   };
 
   update(delta: number, cameraPosition: THREE.Vector3): void {
+    this.updateMovementAnimation(delta);
     if (this.state === 'spawning') {
       this.spawnRemaining = Math.max(0, this.spawnRemaining - delta);
       const progress = 1 - this.spawnRemaining / GameConfig.ENEMY.SPAWN_DURATION;
@@ -184,9 +301,25 @@ export class EnemyBase {
     }
 
     this.group.children.forEach((child) => {
-      if (child.userData.raycastIgnore === true) child.lookAt(cameraPosition);
+      if (child.userData.billboard === true) child.lookAt(cameraPosition);
     });
     this.updateEffects(delta);
+  }
+
+  private updateMovementAnimation(delta: number): void {
+    const movement = this.group.position.distanceTo(this.lastPosition);
+    this.lastPosition.copy(this.group.position);
+    if (this.state === 'chase' && movement > 0) {
+      this.walkPhase += movement * GameConfig.ENEMY.WALK_CYCLE_DISTANCE_SCALE;
+      this.legs.forEach((leg, index) => {
+        const direction = index % 2 === 0 ? 1 : -1;
+        leg.rotation.x = Math.sin(this.walkPhase) * GameConfig.ENEMY.LEG_SWING_ANGLE * direction;
+      });
+      return;
+    }
+    this.legs.forEach((leg) => {
+      leg.rotation.x = THREE.MathUtils.damp(leg.rotation.x, 0, GameConfig.ENEMY.LEG_RESET_SPEED, delta);
+    });
   }
 
   playAttackFeedback(target: THREE.Vector3): void {
@@ -259,6 +392,10 @@ export class EnemyBase {
     return this.definition;
   }
 
+  getHealthRatio(): number {
+    return this.hp / this.definition.maxHp;
+  }
+
   getPosition(): THREE.Vector3 {
     return this.group.position;
   }
@@ -269,8 +406,10 @@ export class EnemyBase {
 
   getMuzzlePosition(): THREE.Vector3 {
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.group.quaternion);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.group.quaternion);
     return this.group.position.clone()
       .add(new THREE.Vector3(0, GameConfig.ENEMY.MUZZLE_Y * this.definition.scale, 0))
+      .addScaledVector(right, GameConfig.ENEMY.MUZZLE_SIDE * this.definition.scale)
       .addScaledVector(forward, GameConfig.ENEMY.MUZZLE_FORWARD * this.definition.scale);
   }
 

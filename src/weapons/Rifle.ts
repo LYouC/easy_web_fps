@@ -10,6 +10,7 @@ export class Rifle extends WeaponBase {
       fireInterval: GameConfig.WEAPON.RIFLE_FIRE_RATE,
       magazineSize: GameConfig.WEAPON.RIFLE_MAG_SIZE,
       reserveAmmo: GameConfig.WEAPON.RIFLE_RESERVE_AMMO,
+      maxReserveAmmo: GameConfig.WEAPON.RIFLE_MAX_RESERVE_AMMO,
       reloadTime: GameConfig.WEAPON.RIFLE_RELOAD_TIME,
       range: GameConfig.WEAPON.RIFLE_RANGE,
       recoil: GameConfig.WEAPON.RIFLE_RECOIL,

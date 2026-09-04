@@ -211,22 +211,42 @@ Key events:
 **Goal**: Ammo pickups on map + kill drops, buildings for cover.
 
 **Tasks**:
-- [ ] PickupBase.ts + AmmoPickup.ts — floating ammo box, proximity pickup
-- [ ] PickupSpawner.ts — random map positions, spawn on interval + on enemy:died
-- [ ] MapBuilder.ts — place buildings (boxes with textures), register colliders
-- [ ] BuildingTemplates.ts — wall, low wall, pillar, room configs
-- [ ] EnemyAI update — use buildings as cover points
-- [ ] AudioManager — pickup collection sound (enemy hit/death cues completed in P3)
+- [x] PickupBase.ts + AmmoPickup.ts — floating ammo box, proximity pickup
+- [x] PickupSpawner.ts — random legal map positions, timed cap + enemy:died drops
+- [x] MapBuilder.ts — place buildings from shared box configs and register matching colliders
+- [x] BuildingTemplates.ts — reusable wall, low wall, pillar, and room configs
+- [x] EnemyAI update — claimed cover points, bounded re-evaluation/travel/hold, combat recovery
+- [x] AudioManager — procedural pickup spawn and collection sounds
 
 **Verify**: Buildings provide cover, ammo boxes appear on map, enemies drop ammo, can pick up.
 
-**Workload assessment**:
-- Complexity: medium-high; approximately 8-12 touched files and three cohesive implementation slices.
-- Pickup slice: create the pickup classes/spawner and an EventBus reserve-ammo grant path, including timed map spawns, enemy kill drops, proximity collection, cleanup, and clear feedback.
-- World slice: extract the current arena boxes from `MainArena` into reusable templates/builder output without changing player grounding, collision, ray obstruction, or debug visualization.
-- AI slice: publish cover points through EventBus and add bounded cover selection/re-evaluation without regressing reaction delays, separation, pause behavior, or wave progression.
-- Primary risks: pickups spawning inside geometry, duplicate EventBus listeners after reset, enemies oscillating between cover points, and collider/render meshes becoming inconsistent during extraction.
-- Recommended execution: three focused sessions following the project scope rule, then one end-to-end manual pass.
+**Implementation notes**:
+- Ammo boxes use only Three.js primitives and configured float, rotation, emissive, rise, and fade feedback. Map boxes grant a random 15–30 rounds and enemy drops grant 10–25 in five-round steps; kill drops use bounded legal-position retries to scatter within 1.6m. All meshes and materials are disposed after collection or scene unload.
+- `pickup:ammoCollectionRequested` is a synchronous typed request. WeaponBase owns reserve mutation, caps reserve at 150, emits `weapon:ammoChanged`, and rejects a pickup when no ammo can be granted.
+- PickupSpawner pauses all timers and proximity checks outside active pointer-locked play. Map spawns use EventBus-provided legal points, area-clear queries, bounds/spacing rules, a five-map-pickup cap, and a ten-pickup total cap; enemy deaths use a configured 35% drop chance.
+- MapBuilder consumes the same world configuration for each visible mesh and AABB. The five P3 test boxes retain their exact transforms, material values, collider IDs, and traversal surfaces; reusable room construction is available for future maps.
+- Spawn points and cover points are queried through EventBus. MapBuilder arbitrates exclusive cover claims and releases them on explicit release, enemy death, or world disposal.
+- EnemyAI preserves the original reaction/fire cadence while adding preferred-distance control, strafing, close-range retreat, 3.2-second last-seen memory, and pressure-driven cover. Damage, low health, or two attacks trigger cover search; searches occur every 0.8–1.2 seconds, travel is capped at 4.5 seconds, and arrival hold is capped at 1.1 seconds.
+- Enemy models now include animated legs, arms, waist/shoulder gear, backpacks, and visible rifles. Raycast-transparent weapon geometry aligns with the actual enemy muzzle origin and does not absorb player shots.
+- Player rifle recoil increased by 12%, retaining the existing recoil-return timing.
+- MainArena owns assembly/update/disposal order. ESC and death stop pickup generation/collection and cover simulation; page restart reconstructs clean singleton listeners and scene resources.
+
+**Automated verification (2026-09-04)**:
+- `npm run build`: passed (`tsc` strict type-check and Vite production build).
+- `npm run test:p4`: passed reserve grant/cap, spawn bounds/spacing, exact building parity, configured spawn legality, and map pickup cap checks.
+- `git diff --check`: passed with only LF-to-CRLF working-copy notices.
+- Source and smoke-test scan found no `any` types.
+- Known non-blocking warning: the existing Three.js production chunk remains larger than 500 kB.
+
+**Manual verification steps**:
+1. Wait through timed map spawns and verify floating ammo-box visuals, spawn cues, legal placement, and the five-map/ten-total caps.
+2. Spend reserve ammo, collect several boxes, and verify a single rise/fade per box, collection cue, randomized source-specific reserve grants, and immediate HUD synchronization.
+3. Fill reserve to 150 and verify a nearby ammo box is not consumed while the weapon cannot accept ammunition.
+4. Kill enough enemies to observe configured drops; confirm no box appears inside a building or too close to another pickup.
+5. Toggle Backquote and verify every migrated building mesh exactly matches its collider wireframe; repeat landing, side-blocking, underside, and ray-obstruction checks.
+6. Observe enemies after firing near cover; verify exclusive destinations, stable movement, bounded holding, and recovery to chase/aim/attack.
+7. Pause during spawn timing, pickup collection, cover travel, and a wave break; verify simulation freezes and resumes without lost state.
+8. Die and restart; verify 30/90 ammo, wave 1, no stale pickups/claims, and no duplicate audio, event, or HUD behavior.
 
 ---
 
@@ -239,10 +259,28 @@ Key events:
 - [x] Death UI — final score, reached wave, and restart button (implemented during P3; optional class extraction remains)
 - [ ] GameState machine — menu → playing → dead → menu
 - [ ] Visual polish — fog, ambient lighting, better textures
+- [ ] Lighting pass — brighten navigation/combat readability while retaining atmosphere
+- [ ] Difficulty selection — Easy / Normal / Hard profiles integrated with menu and game state
 - [ ] GameConfig.ts — all magic numbers extracted
 - [x] Final HUD polish — wave announcement and damage flash
 
 **Verify**: Full game loop: start → play → die → see score → restart.
+
+**Workload assessment**:
+- Complexity: high; approximately 10–15 touched files spanning state, UI ownership, difficulty configuration, arena presentation, audio lifecycle, and integration.
+- State slice: introduce a typed `GameState` authority for menu, playing, paused, and dead transitions while preserving pointer-lock behavior and eliminating reload-only restart coupling.
+- UI/difficulty slice: extract overlay ownership, expose Easy/Normal/Hard selection before a run, and apply immutable per-run profiles through EventBus/config boundaries.
+- Presentation slice: brighten the arena, retune fog and light balance, add inexpensive material variation and ambient Web Audio without external assets or post-processing dependencies.
+- Primary risks: duplicate listeners after restart, competing state flags, pointer-lock cooldown behavior, difficulty values mutating mid-run, and lighting changes reducing enemy/tracer readability.
+- Recommended execution: state/difficulty foundation first, UI lifecycle second, visual/audio polish third, then one full regression pass covering P0–P4 invariants.
+
+**P5 acceptance targets**:
+1. A single state authority drives menu, playing, pause, death, and restart; UI overlays do not maintain competing game-state truth.
+2. Easy/Normal/Hard can be chosen before starting and visibly affect documented enemy or wave parameters without changing during a run.
+3. Restart produces fresh HP, ammo, score, wave, enemies, pickups, cover claims, timers, and listeners without requiring a page reload.
+4. Arena navigation and enemy silhouettes remain readable in shadow while fog, tracers, emissive feedback, and debug wireframes retain clear contrast.
+5. Ambient audio starts only after user interaction, respects pause/death, and releases its audio graph on teardown.
+6. `npm run build`, gameplay smoke tests, `git diff --check`, and the no-`any` scan pass; manual regression covers all three difficulty profiles and the complete game loop.
 
 ---
 

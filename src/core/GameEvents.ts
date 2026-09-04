@@ -16,6 +16,26 @@ export interface AmmoChangedEvent {
   reloading: boolean;
 }
 
+export interface AmmoPickupRequestEvent {
+  pickupId: string;
+  amount: number;
+  accepted: boolean;
+  granted: number;
+}
+
+export interface PickupSpawnedEvent {
+  pickupId: string;
+  position: THREE.Vector3;
+  source: 'map' | 'enemy';
+  amount: number;
+}
+
+export interface PickupCollectedEvent {
+  pickupId: string;
+  position: THREE.Vector3;
+  amount: number;
+}
+
 export interface ShotHitEvent {
   point: THREE.Vector3;
   normal: THREE.Vector3;
@@ -107,4 +127,28 @@ export interface WorldAreaClearRequestEvent {
   radius: number;
   height: number;
   clear: boolean;
+}
+
+export interface WorldSpawnPointsRequestEvent {
+  points: THREE.Vector3[];
+}
+
+export interface WorldCoverPoint {
+  id: string;
+  position: THREE.Vector3;
+}
+
+export interface WorldCoverPointsRequestEvent {
+  points: WorldCoverPoint[];
+}
+
+export interface WorldCoverClaimRequestEvent {
+  coverId: string;
+  enemyId: string;
+  claimed: boolean;
+}
+
+export interface WorldCoverReleaseEvent {
+  coverId: string;
+  enemyId: string;
 }

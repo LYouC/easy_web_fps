@@ -33,6 +33,7 @@ export class WaveManager {
       controller.enemy.update(delta, this.playerPosition);
       if (combatActive) controller.ai.update(delta, this.playerPosition);
       if (!controller.enemy.isReadyToRemove()) continue;
+      controller.ai.dispose();
       controller.enemy.dispose();
       this.enemies.splice(index, 1);
     }
@@ -133,7 +134,10 @@ export class WaveManager {
   dispose(): void {
     this.eventBus.off('enemy:died', this.onEnemyDied);
     this.eventBus.off('player:transformChanged', this.onPlayerTransformChanged);
-    this.enemies.forEach(({ enemy }) => enemy.dispose());
+    this.enemies.forEach(({ enemy, ai }) => {
+      ai.dispose();
+      enemy.dispose();
+    });
     this.enemies.length = 0;
     this.aliveIds.clear();
   }

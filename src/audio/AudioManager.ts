@@ -13,6 +13,8 @@ export class AudioManager {
     this.eventBus.on('enemy:damaged', this.onEnemyHit);
     this.eventBus.on('enemy:died', this.onEnemyDeath);
     this.eventBus.on('enemy:spawned', this.onEnemySpawn);
+    this.eventBus.on('pickup:spawned', this.onPickupSpawn);
+    this.eventBus.on('pickup:collected', this.onPickupCollected);
   }
 
   private getContext(): AudioContext {
@@ -98,6 +100,14 @@ export class AudioManager {
     this.playTone('sine', GameConfig.ENEMY.SPAWN_FREQUENCY_START, GameConfig.ENEMY.SPAWN_FREQUENCY_END, GameConfig.ENEMY.SPAWN_DURATION_AUDIO, GameConfig.ENEMY.SPAWN_VOLUME);
   };
 
+  private onPickupSpawn = (): void => {
+    this.playTone('sine', GameConfig.PICKUP.SPAWN_FREQUENCY_START, GameConfig.PICKUP.SPAWN_FREQUENCY_END, GameConfig.PICKUP.SPAWN_DURATION_AUDIO, GameConfig.PICKUP.SPAWN_VOLUME);
+  };
+
+  private onPickupCollected = (): void => {
+    this.playTone('triangle', GameConfig.PICKUP.COLLECT_FREQUENCY_START, GameConfig.PICKUP.COLLECT_FREQUENCY_END, GameConfig.PICKUP.COLLECT_DURATION_AUDIO, GameConfig.PICKUP.COLLECT_VOLUME);
+  };
+
   dispose(): void {
     this.eventBus.off('player:shoot', this.onShoot);
     this.eventBus.off('weapon:dryFire', this.onDryFire);
@@ -105,6 +115,8 @@ export class AudioManager {
     this.eventBus.off('enemy:damaged', this.onEnemyHit);
     this.eventBus.off('enemy:died', this.onEnemyDeath);
     this.eventBus.off('enemy:spawned', this.onEnemySpawn);
+    this.eventBus.off('pickup:spawned', this.onPickupSpawn);
+    this.eventBus.off('pickup:collected', this.onPickupCollected);
     if (this.context) void this.context.close();
     this.context = null;
   }
