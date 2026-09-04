@@ -29,4 +29,11 @@ export class EventBus {
   clear(): void {
     this.listeners.clear();
   }
+
+  listenerCount(event?: string): number {
+    if (event) return this.listeners.get(event)?.size ?? 0;
+    let count = 0;
+    this.listeners.forEach((listeners) => { count += listeners.size; });
+    return count;
+  }
 }

@@ -1,4 +1,35 @@
 import type * as THREE from 'three';
+import type { GameState } from '@/core/GameStateTransitions';
+
+export type { GameState } from '@/core/GameStateTransitions';
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+export interface GameStateChangeRequestEvent {
+  target: GameState;
+  reason: 'start' | 'pointer-lock-acquired' | 'pointer-lock-lost' | 'player-died' | 'restart';
+}
+
+export interface GameStateChangedEvent {
+  previous: GameState;
+  current: GameState;
+  reason: GameStateChangeRequestEvent['reason'];
+}
+
+export interface GameStartRequestedEvent {
+  difficulty: Difficulty;
+}
+
+export interface GameRunStartedEvent {
+  difficulty: Difficulty;
+}
+
+export interface GameResumeRequestedEvent {
+  source: 'pause-menu';
+}
+
+export interface GameRestartRequestedEvent {
+  source: 'pause-menu' | 'death-screen';
+}
 
 export interface PlayerShootEvent {
   origin: THREE.Vector3;
@@ -91,6 +122,16 @@ export interface PlayerHealthEvent {
 
 export interface PlayerTransformEvent {
   position: THREE.Vector3;
+  forward: THREE.Vector3;
+}
+
+export interface EnemyTransformEvent {
+  enemyId: string;
+  position: THREE.Vector3;
+}
+
+export interface WeaponAimChangedEvent {
+  aiming: boolean;
 }
 
 export interface WaveStartedEvent {

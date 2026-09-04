@@ -11,6 +11,7 @@ import type {
 import { AmmoPickup } from '@/pickups/AmmoPickup';
 import { PickupSpawnRules } from '@/pickups/PickupSpawnRules';
 import { AmmoAmountRules } from '@/pickups/AmmoAmountRules';
+import type { DifficultyProfile } from '@/config/DifficultyConfig';
 
 export class PickupSpawner {
   private readonly eventBus = EventBus.getInstance();
@@ -19,7 +20,7 @@ export class PickupSpawner {
   private spawnElapsed = 0;
   private sequence = 0;
 
-  constructor(private readonly scene: THREE.Scene) {
+  constructor(private readonly scene: THREE.Scene, private readonly difficulty: DifficultyProfile) {
     this.eventBus.on('player:transformChanged', this.onPlayerTransformChanged);
     this.eventBus.on('enemy:died', this.onEnemyDied);
   }
@@ -36,8 +37,9 @@ export class PickupSpawner {
     }
 
     this.spawnElapsed += delta;
-    if (this.spawnElapsed < GameConfig.PICKUP.MAP_SPAWN_INTERVAL) return;
-    this.spawnElapsed %= GameConfig.PICKUP.MAP_SPAWN_INTERVAL;
+    const spawnInterval = GameConfig.PICKUP.MAP_SPAWN_INTERVAL * this.difficulty.mapPickupIntervalMultiplier;
+    if (this.spawnElapsed < spawnInterval) return;
+    this.spawnElapsed %= spawnInterval;
     if (this.countMapPickups() < GameConfig.PICKUP.MAX_MAP_PICKUPS) this.spawnMapPickup();
   }
 
@@ -49,7 +51,8 @@ export class PickupSpawner {
   private onEnemyDied = (...args: unknown[]): void => {
     const event = args[0] as EnemyDiedEvent | undefined;
     if (!event || this.pickups.length >= GameConfig.PICKUP.MAX_TOTAL_PICKUPS) return;
-    if (Math.random() > GameConfig.PICKUP.ENEMY_DROP_CHANCE) return;
+    const dropChance = Math.min(1, GameConfig.PICKUP.ENEMY_DROP_CHANCE * this.difficulty.enemyDropChanceMultiplier);
+    if (Math.random() > dropChance) return;
     const position = this.findDropPosition(event.position);
     if (position) this.spawn(position, 'enemy');
   };

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
-import type { PlayerShootEvent } from '@/core/GameEvents';
+import type { PlayerShootEvent, WeaponAimChangedEvent } from '@/core/GameEvents';
 
 export class WeaponView {
   private readonly camera: THREE.PerspectiveCamera;
@@ -9,7 +9,10 @@ export class WeaponView {
   private readonly muzzleFlash: THREE.Group;
   private readonly muzzleLight: THREE.PointLight;
   private readonly eventBus: EventBus;
-  private readonly restPosition = new THREE.Vector3(0.34, -0.31, -0.58);
+  private readonly hipPosition = new THREE.Vector3(...GameConfig.WEAPON.HIP_POSITION);
+  private readonly adsPosition = new THREE.Vector3(...GameConfig.WEAPON.ADS_POSITION);
+  private readonly restPosition = new THREE.Vector3(...GameConfig.WEAPON.HIP_POSITION);
+  private aiming = false;
   private recoil: number = 0;
   private flashRemaining: number = 0;
   private elapsed: number = 0;
@@ -31,6 +34,7 @@ export class WeaponView {
 
     this.eventBus.on('player:shoot', this.onShoot);
     this.eventBus.on('weapon:reloadStarted', this.onReloadStarted);
+    this.eventBus.on('weapon:aimChanged', this.onAimChanged);
   }
 
   private buildWeapon(): THREE.Group {
@@ -62,9 +66,48 @@ export class WeaponView {
     magazine.rotation.x = -0.18;
     group.add(magazine);
 
-    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.12), darkMetal);
-    sight.position.set(0, 0.105, -0.25);
-    group.add(sight);
+    const scopeY = 0.105;
+    const scopeZ = -0.28;
+    const scopeW = 0.048;
+    const scopeH = 0.048;
+    const scopeL = 0.22;
+    const scopeT = 0.007;
+
+    const scopeTop = new THREE.Mesh(new THREE.BoxGeometry(scopeW, scopeT, scopeL), darkMetal);
+    scopeTop.position.set(0, scopeY + scopeH / 2 - scopeT / 2, scopeZ);
+    group.add(scopeTop);
+
+    const scopeBottom = new THREE.Mesh(new THREE.BoxGeometry(scopeW, scopeT, scopeL), darkMetal);
+    scopeBottom.position.set(0, scopeY - scopeH / 2 + scopeT / 2, scopeZ);
+    group.add(scopeBottom);
+
+    const scopeLeft = new THREE.Mesh(new THREE.BoxGeometry(scopeT, scopeH - scopeT * 2, scopeL), darkMetal);
+    scopeLeft.position.set(-scopeW / 2 + scopeT / 2, scopeY, scopeZ);
+    group.add(scopeLeft);
+
+    const scopeRight = new THREE.Mesh(new THREE.BoxGeometry(scopeT, scopeH - scopeT * 2, scopeL), darkMetal);
+    scopeRight.position.set(scopeW / 2 - scopeT / 2, scopeY, scopeZ);
+    group.add(scopeRight);
+
+    const scopeFrontRing = new THREE.Mesh(
+      new THREE.TorusGeometry(scopeW / 2 - scopeT / 2, scopeT, 8, 14),
+      gunMetal,
+    );
+    scopeFrontRing.rotation.x = Math.PI / 2;
+    scopeFrontRing.position.set(0, scopeY, scopeZ - scopeL / 2);
+    group.add(scopeFrontRing);
+
+    const scopeRearRing = new THREE.Mesh(
+      new THREE.TorusGeometry(scopeW / 2 - scopeT / 2, scopeT, 8, 14),
+      gunMetal,
+    );
+    scopeRearRing.rotation.x = Math.PI / 2;
+    scopeRearRing.position.set(0, scopeY, scopeZ + scopeL / 2);
+    group.add(scopeRearRing);
+
+    const scopeMount = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 0.16), gunMetal);
+    scopeMount.position.set(0, scopeY - scopeH / 2 - 0.008, scopeZ);
+    group.add(scopeMount);
 
     group.traverse((object) => {
       object.userData.raycastIgnore = true;
@@ -103,6 +146,11 @@ export class WeaponView {
     this.recoil = 0.45;
   };
 
+  private onAimChanged = (...args: unknown[]): void => {
+    const event = args[0] as WeaponAimChangedEvent | undefined;
+    if (event) this.aiming = event.aiming;
+  };
+
   update(delta: number): void {
     this.elapsed += delta;
     this.recoil = THREE.MathUtils.damp(this.recoil, 0, GameConfig.WEAPON.RECOIL_RETURN_SPEED, delta);
@@ -114,21 +162,25 @@ export class WeaponView {
     }
 
     const sway = Math.sin(this.elapsed * GameConfig.WEAPON.WEAPON_SWAY_SPEED) * GameConfig.WEAPON.WEAPON_SWAY_AMOUNT;
+    const targetPosition = this.aiming ? this.adsPosition : this.hipPosition;
+    this.restPosition.lerp(targetPosition, 1 - Math.exp(-GameConfig.WEAPON.ADS_TRANSITION_SPEED * delta));
+    const swayScale = this.aiming ? GameConfig.WEAPON.ADS_SWAY_SCALE : 1;
     this.group.position.set(
-      this.restPosition.x + sway,
-      this.restPosition.y - sway,
+      this.restPosition.x + sway * swayScale,
+      this.restPosition.y - sway * swayScale,
       this.restPosition.z + this.recoil * GameConfig.WEAPON.RECOIL_KICK_DISTANCE
     );
     this.group.rotation.set(
       this.recoil * GameConfig.WEAPON.RECOIL_KICK_ROTATION,
       0,
-      sway * 2
+      sway * 2 * swayScale
     );
   }
 
   dispose(): void {
     this.eventBus.off('player:shoot', this.onShoot);
     this.eventBus.off('weapon:reloadStarted', this.onReloadStarted);
+    this.eventBus.off('weapon:aimChanged', this.onAimChanged);
     this.camera.remove(this.group);
     this.group.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;

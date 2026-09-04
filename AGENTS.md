@@ -6,7 +6,7 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 
 ## Current Phase
 
-**P4 — Pickups & World** ✅ Complete · **Next: P5 — Polish**
+**P7 — Combat Presentation** ✅ Complete · **Next phase not yet defined**
 
 ## Module Status
 
@@ -15,13 +15,13 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 | core/ | ✅ Done | Engine, EventBus, InputManager |
 | scene/ | ✅ Done | SceneBase, SceneManager, MainArena |
 | player/ | ✅ Done | FPSCamera, Movement, Player |
-| weapons/ | ✅ Done | WeaponBase, Rifle, WeaponView |
-| combat/ | ✅ Done | RaycastShooter, DamageSystem, CoverSystem |
+| weapons/ | ✅ Done | WeaponBase, Rifle, centered RMB ADS, WeaponView |
+| combat/ | ✅ Done | RaycastShooter, DamageSystem, CoverSystem, layered hit effects |
 | enemies/ | ✅ Done | Tactical range control, strafing, sight memory, suppression cover, detailed models and weapons |
 | pickups/ | ✅ Done | Randomized map/drop ammo, PickupBase, AmmoPickup, PickupSpawner, spawn/amount rules |
-| world/ | ✅ Done | ColliderManager, MapBuilder, BuildingTemplates, spawn/cover queries |
-| ui/ | 🚧 Partial | Combat HUD plus pause/death restart overlays done; main menu polish pending P5 |
-| audio/ | 🚧 Partial | Rifle, enemy combat, and pickup cues done; ambient cues pending P5 |
+| world/ | ✅ Done | ColliderManager, shared building sources, factory/scenic environment and dressing props |
+| ui/ | ✅ Done | Combat HUD, player-relative enemy radar, and owned responsive menu screens |
+| audio/ | ✅ Done | Rifle/enemy/pickup cues plus lifecycle-safe procedural ambience |
 | config/ | ✅ Done | GameConfig |
 
 ## Architecture Rules
@@ -111,6 +111,80 @@ npm run build      # Type-check + build, no errors
 | 2026-09-04 | Cover is pressure-driven | Damage, low health, or two attacks without repositioning trigger bounded cover search; lost sight uses a 3.2-second last-known-position memory |
 | 2026-09-04 | Enemy silhouettes include combat equipment | Legs, arms, waist gear, shoulder pads, backpack, and a visible rifle preserve typed hit zones while weapon meshes remain raycast-transparent |
 | 2026-09-04 | Darkness and difficulty selection are deferred to P5 | Lighting is already a P5 polish item; Easy/Normal/Hard selection is now explicitly scheduled with the menu/state work |
+| 2026-09-04 | GameStateManager is the sole menu/playing/paused/dead authority | Pointer Lock requests do not optimistically change state; only successful lock acquisition enters playing, while loss pauses |
+| 2026-09-04 | Difficulty is an immutable per-run profile | Easy/Normal/Hard scale enemy pressure, wave opening size, and supply cadence without mutating GameConfig or changing type relationships |
+| 2026-09-04 | SceneManager.clear defines the run reset boundary | Old MainArena listeners, entities, pickups, cover claims, timers, DOM, GPU resources, and audio graph are disposed before a new run is constructed |
+| 2026-09-04 | Readability uses configured fill lighting and vertex color variation | Brighter ambient/hemisphere fill, tighter fog, face tones, and procedural ground variation retain shadows and atmosphere without assets/post-processing |
+| 2026-09-04 | Ambient audio is a per-run procedural graph | Filtered noise plus a quiet low hum starts only after playing begins, fades with state, and is stopped/disconnected on unload |
+| 2026-09-04 | The arena is an industrial processing yard | Tanks, stack, pipes, containers, machinery, gantry, signs, lane markings, and work lights establish a factory identity with procedural primitives only |
+| 2026-09-04 | Factory gameplay solids share visual configuration and AABBs | Large props register deterministic colliders from the same position/size source; overhead details are explicitly decorative and raycast-transparent |
+| 2026-09-04 | Collider debug starts hidden | The Backquote diagnostic remains available while the default presentation is clean enough for normal play |
+| 2026-09-04 | Factory art direction is bright stylized low-poly | A supplied railway/coastal FPS reference informed the high-key sky, pastel concrete, simplified silhouettes, green backdrop, and teal/yellow accents without copying its UI or branding |
+| 2026-09-04 | ScenicBackdrop owns non-gameplay set dressing | Distant hills, clustered trees, clouds, a coastal water plane, service railway, railcar, and catenary remain raycast-transparent and are disposed with MainArena |
+| 2026-09-04 | ADS is a run-owned camera/weapon presentation system | RMB emits one typed aim state, smoothly narrows FOV to 50°, centers the sight, and resets on pause, death, or unload without changing shot damage/cadence |
+| 2026-09-04 | Radar consumes transform events only | HUD projects typed player/enemy positions into player-local space and removes blips on death/dispose without holding enemy instances |
+| 2026-09-04 | Hit feedback is a dedicated transient system | Configured cores, rings, and ballistic sparks freeze with gameplay and release every geometry/material on expiry or restart |
+| 2026-09-04 | Small factory props are decorative | Barrels, pallets, cones, cable reel, and cabinets enrich composition while remaining raycast-transparent to avoid changing verified collision and cover behavior |
+
+## P7 Verification
+
+- `npm run build` — passed on 2026-09-04 (`tsc` strict + Vite production build).
+- `npm run test:p4`, `npm run test:p5`, `npm run test:p6`, and `npm run test:p7` — passed; P7 checks ADS FOV/centering, radar orientation/clamping, positive effect timings, prop variety, and disposal hooks.
+- Local browser inspection confirmed the responsive tactical menu after the added RMB instruction. The embedded browser rejected Pointer Lock as expected; its state remained safely in menu, so ADS/combat visual checks remain in the manual list.
+- Non-blocking warning: the existing minified Three.js production chunk remains over 500 kB.
+
+## P7 Manual Test Steps
+
+1. Start a run, hold RMB, and confirm FOV smoothly narrows, the rifle sight moves to screen center, sway is reduced, and releasing RMB returns smoothly to hip view.
+2. Aim, then press ESC or die; confirm FOV immediately returns to 75°, the aim event fires once, and resuming permits a fresh RMB aim without sticking.
+3. Shoot the ground, buildings, and enemies; confirm a bright core, expanding ring, and short spark burst appears, with warm world impacts and red enemy impacts.
+4. Pause while sparks or a ring are visible; confirm their lifetimes freeze. Restart repeatedly and confirm no old effects remain or duplicate.
+5. Confirm the top-right radar keeps the player arrow fixed upward, places enemies according to view direction, rotates naturally while turning, removes dead enemies, and marks enemies beyond 48 m at the amber edge.
+6. Inspect the yard props: paired barrels, stacked pallets, entrance cones, cable reel, and utility cabinets should add visual rhythm without blocking bullets, sight, movement, pickups, or central combat lanes.
+7. At widths below 640 px, confirm the radar scales down without overlapping score/wave, crosshair, ammo, or health panels.
+8. Repeat the three-cycle start → pause → resume → restart/death regression and confirm one radar blip per enemy, one aim transition, one hit burst, and no retained DOM, listeners, particles, or scene props.
+
+## P6 Verification
+
+- `npm run build` — passed on 2026-09-04.
+- `npm run test:p4`, `npm run test:p5`, and `npm run test:p6` — passed; P6 checks model variety, unique IDs, map bounds, pickup clearance, scenery counts, railway/water configuration, markings, lighting, and signage.
+- Local Vite factory panoramas — visually checked from the main yard and rail edge with no browser console warnings/errors; the result matches the reference's bright low-poly language while retaining the factory layout.
+- Debug wireframes now default off and remain toggleable with Backquote.
+
+## P6 Manual Test Steps
+
+1. Start a run and inspect the yard from the center and perimeter; confirm tanks, pipe runs, chimney, containers, generator, crates, gantry, signs, lanes, and work lights form a coherent factory rather than isolated primitives.
+2. Walk and shoot around every large factory prop; confirm tanks, chimney, containers, generator, and crates block movement and world attack rays at their configured AABBs.
+3. Confirm overhead pipes, gantry members, signs, markings, fixtures, and poles do not unexpectedly block movement, enemy sight, or bullets.
+4. Toggle Backquote and verify new factory collider wireframes cover only configured gameplay solids; toggle again for the clean default presentation.
+5. Confirm all existing pickup points remain legal, enemy spawns avoid factory solids, and combat sightlines still provide open routes across the central processing lane.
+6. Restart three times and verify no duplicated factory mesh, light, sign texture, or collider remains from the previous MainArena.
+7. Inspect the perimeter and confirm low-poly hills, trees, cloud groups, railcar/catenary, and coastal water frame the arena without blocking combat rays or creating unreachable gameplay geometry.
+
+## P5 Verification
+
+- `npm run build` — passed on 2026-09-04 (`tsc` strict type-check + Vite production build).
+- `npm run test:p4` — passed all P4 ammo, world parity, spawning, tactical AI, recoil, and enemy weapon checks.
+- `npm run test:p5` — passed legal/illegal state transitions, Normal parity and Easy/Hard ordering, three listener attach/detach cycles, and three scene unload cycles.
+- `git diff --check` — passed; only expected LF-to-CRLF working-copy notices.
+- `rg -n "\bany\b" src scripts` — no matches.
+- Local Vite visual smoke check — responsive menu rendered correctly, difficulty controls switched correctly, and no browser console errors occurred. The embedded browser intentionally rejected Pointer Lock and the state remained safely in menu.
+- Non-blocking warning: the existing minified Three.js bundle remains over 500 kB.
+
+## P5 Manual Test Steps
+
+1. Load the page and confirm no wave starts behind the main menu; select Easy, Normal, and Hard in turn and verify only one threat card is selected before choosing the intended run.
+2. Begin each difficulty and confirm successful Pointer Lock hides the menu, shows one HUD, resets HP/score/wave/ammo to 100/0/0/30+90, and starts wave 1 with 2/3/4 enemies for Easy/Normal/Hard.
+3. Press ESC while moving, firing/reloading, an enemy is spawning/dying/moving to cover, a pickup is animating, and the wave break is counting down; confirm every world/combat timer freezes and the pause panel appears.
+4. Click Resume once, then again if the browser cooldown rejects the first Pointer Lock request; confirm the state remains paused until lock succeeds and the simulation continues from the exact frozen state.
+5. On Easy, confirm incoming damage/accuracy are lower, reactions are slower, map ammo arrives sooner, and enemy drops are more common while all enemy types still use their original relative cadence, speed, HP, and roles.
+6. On Normal, confirm the P4 values remain exact: 3 + 2 per wave, type HP/speed/damage/accuracy/reaction/fire cadence, rifle 25 damage at 0.12s, 30/90 ammo, reload/recoil, and configured pickup quantities/caps.
+7. On Hard, confirm wave 1 has four enemies, aim and reactions are sharper, damage pressure is higher but non-lethal per hit, map ammo is slower, and drops are less common.
+8. Earn score, reach a later wave, die, and confirm the death screen shows the padded final score, reached wave, and selected difficulty; confirm ambience and gameplay stop.
+9. Use Restart Run from both pause and death. Repeat start → pause → resume → restart at least three times and confirm exactly one HUD, shot sound, ambient bed, damage event, pickup response, and wave announcement per action.
+10. After each restart, confirm no old enemies/pickups/tracers remain, cover destinations can be claimed normally, wave 1 restarts, and HP/ammo/score/AI memory/timers are fresh without a page reload.
+11. Compare the arena to P4: verify building transforms, landing surfaces, side/underside collision, ray obstruction, cover points, and Backquote wireframes are unchanged while shadowed faces, enemy silhouettes, ground divisions, and ammo boxes are easier to read.
+12. Confirm ambience is silent on the initial menu, fades in only after the start interaction and successful play state, fades out on pause/death, returns smoothly on resume, and never stacks after repeated restarts.
 
 ## P4 Verification
 

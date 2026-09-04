@@ -1,96 +1,106 @@
+import { getDifficultyProfile } from '@/config/DifficultyConfig';
 import { Engine } from '@/core/Engine';
-import { MainArena } from '@/scene/scenes/MainArena';
 import { EventBus } from '@/core/EventBus';
-import { GameConfig } from '@/config/GameConfig';
-import type { ScoreChangedEvent, WaveStartedEvent } from '@/core/GameEvents';
+import type { Difficulty, GameRestartRequestedEvent, GameResumeRequestedEvent, GameRunStartedEvent, GameStartRequestedEvent, GameStateChangeRequestEvent } from '@/core/GameEvents';
+import { GameStateManager } from '@/core/GameStateManager';
+import { MainArena } from '@/scene/scenes/MainArena';
+import { DeathScreen } from '@/ui/DeathScreen';
+import { MainMenu } from '@/ui/MainMenu';
+import { PauseMenu } from '@/ui/PauseMenu';
 
-const engine = new Engine();
-const inputManager = engine.getInputManager();
-const arena = new MainArena(inputManager);
-
-engine.getSceneManager().switchTo(arena);
-
-const startScreen = document.getElementById('start-screen');
-const startBtn = document.getElementById('start-btn');
-const pauseScreen = document.getElementById('pause-screen');
-const resumeBtn = document.getElementById('resume-btn');
-const pauseResetBtn = document.getElementById('pause-reset-btn');
-const deathScreen = document.getElementById('death-screen');
-const deathResetBtn = document.getElementById('death-reset-btn');
-const deathScore = document.getElementById('death-score');
-const deathWave = document.getElementById('death-wave');
 const eventBus = EventBus.getInstance();
+const stateManager = new GameStateManager();
+const engine = new Engine();
+const mainMenu = new MainMenu();
+const pauseMenu = new PauseMenu();
+const deathScreen = new DeathScreen();
+let difficulty: Difficulty = 'normal';
+let runPrepared = false;
 
-let gameStarted = false;
-let gameOver = false;
-let currentScore = 0;
-let currentWave = 0;
+function requestState(target: GameStateChangeRequestEvent['target'], reason: GameStateChangeRequestEvent['reason']): void {
+  const request: GameStateChangeRequestEvent = { target, reason };
+  eventBus.emit('game:stateChangeRequested', request);
+}
 
 function requestPointerLock(): void {
   try {
-    engine.getRenderer().domElement.requestPointerLock();
+    const request = engine.getRenderer().domElement.requestPointerLock();
+    void request?.catch(() => undefined);
   } catch {
-    // SecurityError: browser cooldown after ESC, will retry on next click
+    return;
   }
 }
 
-function startGame(): void {
-  if (gameStarted) return;
-  gameStarted = true;
-  if (startScreen) {
-    startScreen.style.display = 'none';
-  }
-  engine.start();
-  requestPointerLock();
-  console.log('[Game] P4 — Pickups & World active');
+function prepareRun(nextDifficulty: Difficulty): void {
+  difficulty = nextDifficulty;
+  engine.getSceneManager().clear();
+  const arena = new MainArena(engine.getInputManager(), getDifficultyProfile(difficulty));
+  engine.getSceneManager().switchTo(arena);
+  const started: GameRunStartedEvent = { difficulty };
+  eventBus.emit('game:runStarted', started);
+  runPrepared = true;
 }
 
-function resumeGame(): void {
-  if (!gameStarted || gameOver) return;
+function onStartRequested(...args: unknown[]): void {
+  const event = args[0] as GameStartRequestedEvent | undefined;
+  if (!event || stateManager.getState() !== 'menu') return;
+  if (!runPrepared || event.difficulty !== difficulty) prepareRun(event.difficulty);
   requestPointerLock();
 }
 
-function resetGame(): void {
-  window.location.reload();
+function onResumeRequested(...args: unknown[]): void {
+  const event = args[0] as GameResumeRequestedEvent | undefined;
+  if (!event || stateManager.getState() !== 'paused') return;
+  requestPointerLock();
+}
+
+function onRestartRequested(...args: unknown[]): void {
+  const event = args[0] as GameRestartRequestedEvent | undefined;
+  if (!event) return;
+  const state = stateManager.getState();
+  if (state !== 'paused' && state !== 'dead') return;
+  if (!runPrepared) prepareRun(difficulty);
+  requestPointerLock();
 }
 
 function onPlayerDied(): void {
-  gameOver = true;
-  if (document.pointerLockElement) document.exitPointerLock();
-  if (pauseScreen) pauseScreen.style.display = 'none';
-  if (deathScore) deathScore.textContent = currentScore.toString().padStart(GameConfig.HUD.SCORE_DIGITS, '0');
-  if (deathWave) deathWave.textContent = currentWave.toString().padStart(GameConfig.HUD.VALUE_DIGITS, '0');
-  if (deathScreen) deathScreen.style.display = 'flex';
+  if (stateManager.getState() !== 'playing') return;
+  runPrepared = false;
+  requestState('dead', 'player-died');
+  if (document.pointerLockElement) void document.exitPointerLock();
 }
 
-function onScoreChanged(...args: unknown[]): void {
-  const event = args[0] as ScoreChangedEvent | undefined;
-  if (event) currentScore = event.score;
-}
-
-function onWaveStarted(...args: unknown[]): void {
-  const event = args[0] as WaveStartedEvent | undefined;
-  if (event) currentWave = event.wave;
-}
-
-startBtn?.addEventListener('click', startGame);
-resumeBtn?.addEventListener('click', resumeGame);
-pauseResetBtn?.addEventListener('click', resetGame);
-deathResetBtn?.addEventListener('click', resetGame);
-eventBus.on('player:died', onPlayerDied);
-eventBus.on('score:changed', onScoreChanged);
-eventBus.on('wave:started', onWaveStarted);
-
-document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement) {
-    if (gameStarted && !gameOver && pauseScreen) {
-      pauseScreen.style.display = 'flex';
-    }
-  } else {
-    if (pauseScreen) {
-      pauseScreen.style.display = 'none';
-    }
+function onPointerLockChange(): void {
+  const lockedToGame = document.pointerLockElement === engine.getRenderer().domElement;
+  const state = stateManager.getState();
+  if (lockedToGame && (runPrepared || state === 'paused' || state === 'dead')) {
+    runPrepared = false;
+    requestState('playing', state === 'menu' ? 'start' : 'pointer-lock-acquired');
+    return;
   }
-});
+  if (!lockedToGame && state === 'playing') requestState('paused', 'pointer-lock-lost');
+}
 
-console.log('[Game] Ready. Click PLAY to start.');
+function dispose(): void {
+  document.removeEventListener('pointerlockchange', onPointerLockChange);
+  window.removeEventListener('beforeunload', dispose);
+  eventBus.off('game:startRequested', onStartRequested);
+  eventBus.off('game:resumeRequested', onResumeRequested);
+  eventBus.off('game:restartRequested', onRestartRequested);
+  eventBus.off('player:died', onPlayerDied);
+  mainMenu.dispose();
+  pauseMenu.dispose();
+  deathScreen.dispose();
+  engine.dispose();
+  stateManager.dispose();
+}
+
+eventBus.on('game:startRequested', onStartRequested);
+eventBus.on('game:resumeRequested', onResumeRequested);
+eventBus.on('game:restartRequested', onRestartRequested);
+eventBus.on('player:died', onPlayerDied);
+document.addEventListener('pointerlockchange', onPointerLockChange);
+window.addEventListener('beforeunload', dispose);
+engine.start();
+
+console.log('[Game] P7 combat presentation ready. Select a threat level and begin.');

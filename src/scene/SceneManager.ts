@@ -9,6 +9,11 @@ export class SceneManager {
     this.currentScene.load();
   }
 
+  clear(): void {
+    this.currentScene?.unload();
+    this.currentScene = null;
+  }
+
   update(delta: number): void {
     this.currentScene?.update(delta);
   }

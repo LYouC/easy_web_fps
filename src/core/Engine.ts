@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EventBus } from '@/core/EventBus';
 import { InputManager } from '@/core/InputManager';
 import { SceneManager } from '@/scene/SceneManager';
+import { GameConfig } from '@/config/GameConfig';
 
 export class Engine {
   private renderer: THREE.WebGLRenderer;
@@ -19,7 +20,7 @@ export class Engine {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.toneMappingExposure = GameConfig.VISUAL.TONE_MAPPING_EXPOSURE;
 
     document.body.appendChild(this.renderer.domElement);
 
@@ -97,9 +98,9 @@ export class Engine {
 
   dispose(): void {
     this.stop();
+    this.sceneManager.clear();
     window.removeEventListener('resize', this.onResize);
     this.inputManager.dispose();
-    this.eventBus.clear();
     this.renderer.dispose();
     document.body.removeChild(this.renderer.domElement);
   }

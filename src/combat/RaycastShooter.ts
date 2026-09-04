@@ -3,11 +3,6 @@ import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
 import type { PlayerShootEvent, ShotHitEvent } from '@/core/GameEvents';
 
-interface Impact {
-  mesh: THREE.Mesh;
-  remaining: number;
-}
-
 interface TracerMaterial {
   material: THREE.MeshBasicMaterial;
   opacity: number;
@@ -23,7 +18,6 @@ export class RaycastShooter {
   private readonly scene: THREE.Scene;
   private readonly eventBus: EventBus;
   private readonly raycaster = new THREE.Raycaster();
-  private readonly impacts: Impact[] = [];
   private readonly tracers: Tracer[] = [];
 
   constructor(scene: THREE.Scene) {
@@ -61,7 +55,6 @@ export class RaycastShooter {
       damage: shot.damage,
     };
     this.eventBus.emit('combat:shotHit', event);
-    this.createImpact(event.point, event.normal);
   };
 
   private isIgnored(object: THREE.Object3D): boolean {
@@ -71,15 +64,6 @@ export class RaycastShooter {
       current = current.parent;
     }
     return false;
-  }
-
-  private createImpact(point: THREE.Vector3, normal: THREE.Vector3): void {
-    const material = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 1 });
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(GameConfig.WEAPON.IMPACT_SIZE, 6, 4), material);
-    mesh.position.copy(point).addScaledVector(normal, GameConfig.WEAPON.IMPACT_SIZE);
-    mesh.userData.raycastIgnore = true;
-    this.scene.add(mesh);
-    this.impacts.push({ mesh, remaining: GameConfig.WEAPON.IMPACT_DURATION });
   }
 
   private createTracer(start: THREE.Vector3, end: THREE.Vector3): void {
@@ -127,21 +111,6 @@ export class RaycastShooter {
   }
 
   update(delta: number): void {
-    for (let index = this.impacts.length - 1; index >= 0; index -= 1) {
-      const impact = this.impacts[index];
-      if (!impact) continue;
-      impact.remaining -= delta;
-      (impact.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(
-        0,
-        impact.remaining / GameConfig.WEAPON.IMPACT_DURATION
-      );
-      if (impact.remaining > 0) continue;
-      this.scene.remove(impact.mesh);
-      impact.mesh.geometry.dispose();
-      (impact.mesh.material as THREE.Material).dispose();
-      this.impacts.splice(index, 1);
-    }
-
     for (let index = this.tracers.length - 1; index >= 0; index -= 1) {
       const tracer = this.tracers[index];
       if (!tracer) continue;
@@ -167,12 +136,6 @@ export class RaycastShooter {
 
   dispose(): void {
     this.eventBus.off('player:shoot', this.onPlayerShoot);
-    this.impacts.forEach(({ mesh }) => {
-      this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
-    });
-    this.impacts.length = 0;
     this.tracers.forEach((tracer) => this.disposeTracer(tracer));
     this.tracers.length = 0;
   }

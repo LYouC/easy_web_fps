@@ -1,5 +1,6 @@
 import { GameConfig } from '@/config/GameConfig';
 import type { EnemyType } from '@/core/GameEvents';
+import { DifficultyProfiles, type DifficultyProfile } from '@/config/DifficultyConfig';
 
 export interface EnemyDefinition {
   type: EnemyType;
@@ -61,6 +62,12 @@ const DEFINITIONS: Record<EnemyType, EnemyDefinition> = {
   },
 };
 
-export function getEnemyDefinition(type: EnemyType): EnemyDefinition {
-  return DEFINITIONS[type];
+export function getEnemyDefinition(type: EnemyType, profile: DifficultyProfile = DifficultyProfiles.normal): EnemyDefinition {
+  const definition = DEFINITIONS[type];
+  return {
+    ...definition,
+    damage: definition.damage * profile.enemyDamageMultiplier,
+    accuracy: Math.min(0.99, definition.accuracy * profile.enemyAccuracyMultiplier),
+    reactionTime: definition.reactionTime * profile.enemyReactionTimeMultiplier,
+  };
 }

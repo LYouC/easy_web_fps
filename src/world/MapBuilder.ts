@@ -58,8 +58,23 @@ export class MapBuilder {
     const [width, height, depth] = config.size;
     const [x, y, z] = config.position;
     const geometry = new THREE.BoxGeometry(width, height, depth);
+    const positions = geometry.getAttribute('position');
+    const normals = geometry.getAttribute('normal');
+    const colors: number[] = [];
+    const baseColor = new THREE.Color(config.color);
+    for (let index = 0; index < positions.count; index += 1) {
+      const directionalTone = normals.getY(index) * 0.55 + normals.getX(index) * 0.18;
+      const surfaceTone = Math.sin((positions.getX(index) + positions.getZ(index) + this.getPieceToneSeed(id)) * 1.7) * 0.25;
+      const variation = (directionalTone + surfaceTone) * GameConfig.VISUAL.BUILDING_FACE_VARIATION;
+      const color = baseColor.clone().offsetHSL(0, 0, variation);
+      colors.push(color.r, color.g, color.b);
+    }
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     const material = new THREE.MeshStandardMaterial({
-      color: config.color,
+      color: 0xffffff,
+      vertexColors: true,
+      emissive: config.color,
+      emissiveIntensity: GameConfig.VISUAL.BUILDING_EMISSIVE_INTENSITY,
       roughness: GameConfig.WORLD.BUILDING_ROUGHNESS,
       metalness: GameConfig.WORLD.BUILDING_METALNESS,
     });
@@ -89,6 +104,12 @@ export class MapBuilder {
       { id: `${id}_north`, position: new THREE.Vector3(x, 0, z - halfDepth - offset) },
       { id: `${id}_south`, position: new THREE.Vector3(x, 0, z + halfDepth + offset) },
     );
+  }
+
+  private getPieceToneSeed(id: string): number {
+    let seed = 0;
+    for (let index = 0; index < id.length; index += 1) seed += id.charCodeAt(index);
+    return seed * 0.07;
   }
 
   private onSpawnPointsRequested = (...args: unknown[]): void => {

@@ -16,10 +16,11 @@ export class Debug {
     this.scene = scene;
     this.colliderManager = colliderManager;
     this.eventBus = EventBus.getInstance();
-    this.visible = true;
+    this.visible = GameConfig.DEBUG.COLLIDER_VISIBLE_DEFAULT;
     this.group = new THREE.Group();
     this.group.name = '__debug_colliders__';
     this.group.userData.raycastIgnore = true;
+    this.group.visible = this.visible;
     this.scene.add(this.group);
 
     document.addEventListener('keydown', this.onKeyDown);

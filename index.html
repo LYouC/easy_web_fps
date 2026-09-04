@@ -3,233 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FPS Game</title>
+    <title>Blacksite — FPS Range</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      html, body {
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        background: #000;
-        font-family: 'Courier New', monospace;
-      }
-
-      canvas {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-
-      #ui-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 10;
-      }
-
-      #start-screen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.85);
-        z-index: 100;
-        pointer-events: auto;
-      }
-
-      #start-screen h1 {
-        color: #e0e0e0;
-        font-size: 48px;
-        margin-bottom: 20px;
-        letter-spacing: 4px;
-      }
-
-      #start-screen p {
-        color: #888;
-        font-size: 16px;
-        margin-bottom: 40px;
-      }
-
-      #start-btn {
-        padding: 12px 48px;
-        font-size: 20px;
-        font-family: 'Courier New', monospace;
-        background: #333;
-        color: #e0e0e0;
-        border: 2px solid #666;
-        cursor: pointer;
-        letter-spacing: 2px;
-        transition: all 0.2s;
-      }
-
-      #start-btn:hover {
-        background: #555;
-        border-color: #aaa;
-      }
-
-      #pause-screen, #death-screen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.68);
-        z-index: 90;
-        pointer-events: auto;
-        backdrop-filter: blur(5px);
-      }
-
-      #death-screen {
-        z-index: 110;
-        background: radial-gradient(circle, rgba(42, 9, 12, 0.76), rgba(0, 0, 0, 0.92));
-      }
-
-      .modal-panel {
-        width: min(420px, calc(100vw - 40px));
-        padding: 34px 38px;
-        border: 1px solid rgba(173, 218, 204, 0.32);
-        border-top: 3px solid #83e1c0;
-        background: linear-gradient(135deg, rgba(9, 18, 22, 0.94), rgba(18, 33, 36, 0.86));
-        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.48);
-        text-align: center;
-        clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
-      }
-
-      #death-screen .modal-panel {
-        border-color: rgba(255, 111, 92, 0.4);
-        border-top-color: #ff6f5c;
-      }
-
-      .modal-kicker {
-        color: #83e1c0;
-        font-size: 10px;
-        letter-spacing: 4px;
-      }
-
-      #death-screen .modal-kicker {
-        color: #ff846f;
-      }
-
-      .modal-panel h2 {
-        margin: 10px 0 8px;
-        color: #eef7f4;
-        font-size: 34px;
-        font-weight: 300;
-        letter-spacing: 6px;
-      }
-
-      .modal-description {
-        margin-bottom: 24px;
-        color: #829b97;
-        font-size: 12px;
-        letter-spacing: 1.4px;
-      }
-
-      .death-stats {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1px;
-        margin: 24px 0;
-        background: rgba(131, 225, 192, 0.16);
-      }
-
-      .death-stats div {
-        display: grid;
-        gap: 7px;
-        padding: 16px;
-        background: rgba(8, 15, 18, 0.92);
-      }
-
-      .death-stats span {
-        color: #718b87;
-        font-size: 9px;
-        letter-spacing: 2px;
-      }
-
-      .death-stats strong {
-        color: #eef7f4;
-        font-size: 23px;
-        font-weight: 400;
-        letter-spacing: 2px;
-      }
-
-      .menu-actions {
-        display: flex;
-        justify-content: center;
-        gap: 12px;
-      }
-
-      .menu-button {
-        min-width: 138px;
-        padding: 11px 18px;
-        border: 1px solid #83e1c0;
-        background: #83e1c0;
-        color: #10201f;
-        font: 700 11px 'Courier New', monospace;
-        letter-spacing: 1.8px;
-        cursor: pointer;
-      }
-
-      .menu-button.secondary {
-        border-color: rgba(173, 218, 204, 0.42);
-        background: transparent;
-        color: #c0d5d0;
-      }
-
-      .menu-button:hover {
-        filter: brightness(1.16);
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      :root { color-scheme: dark; font-family: Inter, "Segoe UI", sans-serif; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #10191d; }
+      button { font: inherit; }
+      canvas { display: block; width: 100%; height: 100%; }
+      .game-overlay { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px; opacity: 0; visibility: hidden; pointer-events: none; background: radial-gradient(circle at 50% 35%, rgba(25, 51, 56, .72), rgba(3, 8, 10, .94)); backdrop-filter: blur(7px); transition: opacity .2s ease, visibility .2s ease; }
+      .game-overlay.visible { opacity: 1; visibility: visible; pointer-events: auto; }
+      .death-screen-overlay { z-index: 110; background: radial-gradient(circle, rgba(58, 17, 19, .72), rgba(3, 7, 9, .95)); }
+      .main-menu-overlay { z-index: 120; background: radial-gradient(circle at 50% 25%, rgba(32, 68, 72, .78), rgba(3, 8, 10, .97)); }
+      .modal-panel { width: min(720px, calc(100vw - 32px)); padding: 38px 42px; color: #eef7f4; border: 1px solid rgba(173, 218, 204, .34); border-top: 3px solid #83e1c0; background: linear-gradient(135deg, rgba(9, 18, 22, .96), rgba(18, 33, 36, .89)); box-shadow: 0 24px 80px rgba(0, 0, 0, .52), inset 0 0 50px rgba(99, 208, 170, .035); text-align: center; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); }
+      .compact-panel { width: min(440px, calc(100vw - 32px)); }
+      .danger-panel { border-color: rgba(255, 111, 92, .4); border-top-color: #ff6f5c; }
+      .modal-kicker, .difficulty-heading { color: #83e1c0; font: 700 10px "Courier New", monospace; letter-spacing: 4px; }
+      .danger-panel .modal-kicker { color: #ff846f; }
+      .modal-panel h1 { margin: 10px 0 2px; font-size: clamp(42px, 8vw, 72px); font-weight: 250; letter-spacing: clamp(7px, 1.5vw, 15px); }
+      .modal-panel h2 { margin: 10px 0 8px; font-size: 34px; font-weight: 300; letter-spacing: 6px; }
+      .menu-tagline, .modal-description { color: #829b97; font-size: 11px; letter-spacing: 2.7px; }
+      .modal-description { margin-bottom: 24px; letter-spacing: 1.4px; }
+      .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 28px 0; background: rgba(131, 225, 192, .14); }
+      .controls-grid span { padding: 11px 8px; color: #809693; background: rgba(7, 15, 18, .92); font: 10px "Courier New", monospace; letter-spacing: 1px; }
+      .controls-grid b { color: #d9eee8; }
+      .difficulty-heading { margin-bottom: 11px; color: #7fa29c; letter-spacing: 2px; }
+      .difficulty-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .difficulty-button { min-height: 92px; padding: 13px 11px; border: 1px solid rgba(173, 218, 204, .25); color: #91aaa6; background: rgba(7, 15, 18, .72); cursor: pointer; transition: border-color .15s ease, background .15s ease, transform .15s ease; }
+      .difficulty-button:hover { transform: translateY(-2px); border-color: rgba(131, 225, 192, .65); }
+      .difficulty-button.selected { border-color: #83e1c0; color: #eef7f4; background: rgba(60, 117, 104, .25); box-shadow: inset 0 -2px #83e1c0; }
+      .difficulty-button strong, .difficulty-button small { display: block; }
+      .difficulty-button strong { margin-bottom: 8px; font: 700 13px "Courier New", monospace; letter-spacing: 2px; }
+      .difficulty-button small { color: #718b87; font-size: 10px; line-height: 1.35; }
+      .menu-actions { display: flex; justify-content: center; gap: 12px; }
+      .menu-button { min-width: 148px; padding: 12px 18px; border: 1px solid #83e1c0; color: #10201f; background: #83e1c0; font: 700 11px "Courier New", monospace; letter-spacing: 1.8px; cursor: pointer; transition: filter .15s ease, transform .15s ease; }
+      .menu-button:hover { filter: brightness(1.16); transform: translateY(-1px); }
+      .menu-button.secondary { border-color: rgba(173, 218, 204, .42); color: #c0d5d0; background: transparent; }
+      .start-button { margin-top: 22px; min-width: 220px; }
+      .pointer-note { display: block; margin-top: 12px; color: #58706d; font: 9px "Courier New", monospace; letter-spacing: 1px; }
+      .death-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin: 24px 0; background: rgba(131, 225, 192, .16); }
+      .death-stats div { display: grid; gap: 7px; padding: 15px; background: rgba(8, 15, 18, .92); }
+      .death-stats .wide-stat { grid-column: 1 / -1; }
+      .death-stats span { color: #718b87; font-size: 9px; letter-spacing: 2px; }
+      .death-stats strong { color: #eef7f4; font-size: 22px; font-weight: 400; letter-spacing: 2px; }
+      @media (max-width: 640px), (max-height: 660px) {
+        .modal-panel { padding: 24px 20px; }
+        .controls-grid { grid-template-columns: repeat(2, 1fr); margin: 18px 0; }
+        .difficulty-options { grid-template-columns: 1fr; }
+        .difficulty-button { min-height: 0; padding: 10px; }
+        .difficulty-button small { display: none; }
+        .difficulty-button strong { margin: 0; }
+        .menu-actions { flex-direction: column; }
+        .menu-button { width: 100%; }
+        .start-button { margin-top: 15px; }
       }
     </style>
   </head>
   <body>
-    <div id="ui-overlay">
-      <div id="crosshair"></div>
-    </div>
-    <div id="start-screen">
-      <h1>FPS GAME</h1>
-      <p>WASD MOVE · SHIFT SPRINT · SPACE JUMP · LMB FIRE · R RELOAD</p>
-      <button id="start-btn">PLAY</button>
-    </div>
-    <div id="pause-screen">
-      <div class="modal-panel">
-        <span class="modal-kicker">TACTICAL HOLD</span>
-        <h2>PAUSED</h2>
-        <p class="modal-description">Combat simulation suspended</p>
-        <div class="menu-actions">
-          <button id="resume-btn" class="menu-button">RESUME</button>
-          <button id="pause-reset-btn" class="menu-button secondary">RESTART</button>
-        </div>
-      </div>
-    </div>
-    <div id="death-screen">
-      <div class="modal-panel">
-        <span class="modal-kicker">SYSTEM FAILURE</span>
-        <h2>ELIMINATED</h2>
-        <p class="modal-description">Your combat run has ended</p>
-        <div class="death-stats">
-          <div><span>FINAL SCORE</span><strong id="death-score">000000</strong></div>
-          <div><span>WAVE REACHED</span><strong id="death-wave">00</strong></div>
-        </div>
-        <button id="death-reset-btn" class="menu-button">RESTART RUN</button>
-      </div>
-    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

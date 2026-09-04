@@ -20,6 +20,7 @@ export class InputManager {
     document.addEventListener('mouseup', this.onMouseUp);
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    document.addEventListener('contextmenu', this.onContextMenu);
   }
 
   isKeyDown(code: string): boolean {
@@ -72,6 +73,10 @@ export class InputManager {
     this.pointerLocked = document.pointerLockElement !== null;
   };
 
+  private onContextMenu = (event: MouseEvent): void => {
+    if (this.pointerLocked) event.preventDefault();
+  };
+
   dispose(): void {
     document.removeEventListener('keydown', this.onKeyDown);
     document.removeEventListener('keyup', this.onKeyUp);
@@ -79,5 +84,6 @@ export class InputManager {
     document.removeEventListener('mouseup', this.onMouseUp);
     document.removeEventListener('mousemove', this.onMouseMove);
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
+    document.removeEventListener('contextmenu', this.onContextMenu);
   }
 }

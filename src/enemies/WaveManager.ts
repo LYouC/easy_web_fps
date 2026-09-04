@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
-import type { EnemyDiedEvent, EnemyType, PlayerTransformEvent, WaveCompletedEvent, WaveStartedEvent, WorldAreaClearRequestEvent } from '@/core/GameEvents';
+import type { EnemyDiedEvent, EnemyTransformEvent, EnemyType, PlayerTransformEvent, WaveCompletedEvent, WaveStartedEvent, WorldAreaClearRequestEvent } from '@/core/GameEvents';
 import { EnemyAI } from '@/enemies/EnemyAI';
 import { EnemyBase } from '@/enemies/EnemyBase';
 import { getEnemyDefinition } from '@/enemies/EnemyTypes';
+import type { DifficultyProfile } from '@/config/DifficultyConfig';
 
 interface EnemyController {
   enemy: EnemyBase;
@@ -21,7 +22,7 @@ export class WaveManager {
   private awaitingFirstWave = true;
   private readonly playerPosition = new THREE.Vector3();
 
-  constructor(private readonly scene: THREE.Scene) {
+  constructor(private readonly scene: THREE.Scene, private readonly difficulty: DifficultyProfile) {
     this.eventBus.on('enemy:died', this.onEnemyDied);
     this.eventBus.on('player:transformChanged', this.onPlayerTransformChanged);
   }
@@ -32,6 +33,13 @@ export class WaveManager {
       if (!controller) continue;
       controller.enemy.update(delta, this.playerPosition);
       if (combatActive) controller.ai.update(delta, this.playerPosition);
+      if (!controller.enemy.isDead()) {
+        const transform: EnemyTransformEvent = {
+          enemyId: controller.enemy.getId(),
+          position: controller.enemy.getPosition().clone(),
+        };
+        this.eventBus.emit('enemy:transformChanged', transform);
+      }
       if (!controller.enemy.isReadyToRemove()) continue;
       controller.ai.dispose();
       controller.enemy.dispose();
@@ -68,8 +76,8 @@ export class WaveManager {
 
   private startNextWave(): void {
     this.currentWave += 1;
-    const enemyCount = GameConfig.WAVE.BASE_ENEMY_COUNT
-      + (this.currentWave - 1) * GameConfig.WAVE.ENEMY_COUNT_INCREMENT;
+    const enemyCount = this.difficulty.baseEnemyCount
+      + (this.currentWave - 1) * this.difficulty.enemyCountIncrement;
     for (let index = 0; index < enemyCount; index += 1) this.spawnEnemy(this.selectType(index), index, enemyCount);
     const started: WaveStartedEvent = { wave: this.currentWave, enemyCount };
     this.eventBus.emit('wave:started', started);
@@ -90,7 +98,7 @@ export class WaveManager {
     const id = `w${this.currentWave}_enemy_${this.enemySequence}`;
     this.enemySequence += 1;
     const position = this.findSpawnPosition(index, enemyCount);
-    const enemy = new EnemyBase(this.scene, id, getEnemyDefinition(type), position);
+    const enemy = new EnemyBase(this.scene, id, getEnemyDefinition(type, this.difficulty), position);
     const ai = new EnemyAI(enemy, () => this.enemies.map((entry) => entry.enemy));
     this.enemies.push({ enemy, ai });
     this.aliveIds.add(id);
