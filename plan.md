@@ -444,3 +444,10 @@ Key events:
 - [x] Expose loadout controls in the menu/HUD and summarize key difficulty values on selection cards.
 - [x] Add synchronized holster/draw transitions, a reference-driven upright wide-spine single-edged tactical knife with a lower forward grip, attack lockout, a sharp-edge-leading upper-right to lower-left slash, a narrow straight edge-attached core/glow streak, filtered-noise whoosh, and enemy-only layered impact feedback.
 - [x] Turn the knife edge primarily toward view depth and brighten its gunmetal, silver edge, and metallic highlights for clear first-person readability.
+
+**Existing-phase refinements shipped in v1.0.1**:
+- [x] Add a first-person player body with visible legs, hip-pivot walking, complete shadow silhouette, and lifecycle cleanup.
+- [x] Replace enemy primitives with brick-toy humanoids: green infantry, broad red armored Heavy, and slim dark/yellow Elite with a beret and radio.
+- [x] Add the user-built perimeter fence: concrete base, hazard stripe, posts and rails, with four full-height boundary AABBs and run-owned disposal.
+- [x] Package verified production files as CI artifacts and versioned Release ZIPs; deploy version tags to GitHub Pages using relative asset paths.
+- [x] Update package version to 1.0.1 and retain the existing P4-P8 regression suite. User reports in-game testing is complete.

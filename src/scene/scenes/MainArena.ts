@@ -4,6 +4,7 @@ import { InputManager } from '@/core/InputManager';
 import { FPSCamera } from '@/player/FPSCamera';
 import { Movement } from '@/player/Movement';
 import { Player } from '@/player/Player';
+import { PlayerModel } from '@/player/PlayerModel';
 import { ColliderManager } from '@/world/ColliderManager';
 import { Debug } from '@/core/Debug';
 import { GameConfig } from '@/config/GameConfig';
@@ -24,6 +25,7 @@ import type { DifficultyProfile } from '@/config/DifficultyConfig';
 import type { GameStateChangedEvent } from '@/core/GameEvents';
 import { FactoryEnvironment } from '@/world/FactoryEnvironment';
 import { ScenicBackdrop } from '@/world/ScenicBackdrop';
+import { PerimeterFence } from '@/world/PerimeterFence';
 import { AimController } from '@/weapons/AimController';
 import { HitEffectSystem } from '@/combat/HitEffectSystem';
 
@@ -34,6 +36,7 @@ export class MainArena implements SceneBase {
   private fpsCamera: FPSCamera;
   private movement: Movement;
   private player: Player;
+  private playerModel: PlayerModel;
   private colliderManager: ColliderManager;
   private debug: Debug;
   private weaponLoadout: WeaponLoadout;
@@ -48,6 +51,7 @@ export class MainArena implements SceneBase {
   private mapBuilder: MapBuilder;
   private factoryEnvironment: FactoryEnvironment;
   private scenicBackdrop: ScenicBackdrop;
+  private perimeterFence: PerimeterFence;
   private pickupSpawner: PickupSpawner;
   private aimController: AimController;
   private hitEffectSystem: HitEffectSystem;
@@ -79,10 +83,12 @@ export class MainArena implements SceneBase {
     this.mapBuilder = new MapBuilder(this.scene, this.colliderManager);
     this.factoryEnvironment = new FactoryEnvironment(this.scene, this.colliderManager);
     this.scenicBackdrop = new ScenicBackdrop(this.scene);
+    this.perimeterFence = new PerimeterFence(this.scene, this.colliderManager);
 
     this.fpsCamera = new FPSCamera(this.camera, this.inputManager);
     this.movement = new Movement(this.camera, this.inputManager, this.fpsCamera, this.colliderManager);
     this.player = new Player();
+    this.playerModel = new PlayerModel(this.scene);
     this.debug = new Debug(this.scene, this.colliderManager, this.inputManager);
     this.hud = new HUD();
     this.raycastShooter = new RaycastShooter(this.scene);
@@ -197,9 +203,11 @@ export class MainArena implements SceneBase {
     this.coverSystem.dispose();
     this.damageSystem.dispose();
     this.player.dispose();
+    this.playerModel.dispose();
     this.mapBuilder.dispose();
     this.factoryEnvironment.dispose();
     this.scenicBackdrop.dispose();
+    this.perimeterFence.dispose();
     this.colliderManager.dispose();
     this.weaponView.dispose();
     this.knifeView.dispose();
@@ -236,6 +244,7 @@ export class MainArena implements SceneBase {
       forward: this.camera.getWorldDirection(new THREE.Vector3()),
     };
     this.eventBus.emit('player:transformChanged', transform);
+    this.playerModel.update(delta);
     this.waveManager.update(delta, true);
     this.pickupSpawner.update(delta, true);
   }

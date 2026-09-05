@@ -6,7 +6,7 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 
 ## Current Phase
 
-**P8 — Melee Loadout & Difficulty Expansion** ✅ Complete · **Next phase not yet defined**
+**P8 — Melee Loadout & Difficulty Expansion** ✅ Complete · **Post-P8 character model polish complete**
 
 ## Module Status
 
@@ -294,3 +294,23 @@ Defer optional asset pipelines, post-processing, additional weapons/maps, and sa
 9. Compare body and head shots; confirm Normal dies to one headshot but needs two body shots, while Heavy front armor takes reduced damage.
 10. Enter each enemy's attack range and confirm the enemy brightens while aiming before its first shot; break line of sight and re-enter to confirm the reaction delay resets.
 11. Let HP reach zero; confirm the ELIMINATED overlay shows final score/wave and RESTART RUN starts from full HP, zero score, and wave 1.
+
+
+## Post-P8 Character Model Polish
+
+- User requested brick-toy-inspired human models and confirmed first-person view with a visible body and legs when looking down.
+- Shared core/BlockCharacterModel is a procedural visual asset used by player and enemies; it holds no combat state or cross-module references. Rounded edges, tapered torsos, cylindrical faces, hip-pivot legs, hands, boots, vests, and equipment use four coordinated palettes.
+- Normal wears green infantry equipment, Heavy has a broader red armored silhouette and visor/respirator, Elite wears a slim dark uniform with a yellow beret and radio. Head/body/armor tags remain authoritative for hits; rifles remain raycast-transparent.
+- PlayerModel follows player:transformChanged, animates only during active simulation, excludes its complete hierarchy from attack raycasts, and disposes listeners, materials, and geometry with the run. First-person head/arms write neither color nor depth but retain shadows. Upper-body setback keeps the legs visible below the chest.
+- Verification (2026-09-05): production build and P4-P8 suites passed. Local Vite scripts/character-preview.html visually checked the four models and first-person body; 11 runtime checks passed for enemy hit zones, geometry disposal, and player raycast exclusion.
+- Manual follow-up: walk/run/jump and look straight down in-game; inspect ADS, knife/reload, pause/resume, and restart. Automated preview does not exercise browser Pointer Lock.
+- Existing >500 kB production chunk warning remains non-blocking.
+
+
+## v1.0.1 Release Refinements
+
+- User completed in-game testing and added world/PerimeterFence with four boundary colliders; preserve the authored fence layout and appearance.
+- P8 remains the final phase; character, perimeter, and delivery changes are refinements of existing work.
+- CI verifies all main/PR/version-tag builds and uploads web-dist for 30 days. Version tags additionally publish a Release ZIP and deploy the same verified files to GitHub Pages. Manual workflow dispatch on main can redeploy without a new version.
+- Vite base is relative for repository-subpath hosting and portable static archives. The developer-only character preview is excluded from production output.
+- v1.0.1 local verification: npm run build and npm test passed on 2026-09-05. The existing Three.js chunk-size warning is non-blocking.

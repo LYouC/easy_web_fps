@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { BlockCharacterModel } from '@/core/BlockCharacterModel';
 import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
-import type { EnemyAttackResolvedEvent, EnemyDamagedEvent, EnemyDiedEvent, EnemyHitZone, EnemySpawnedEvent, EnemyState } from '@/core/GameEvents';
+import type { EnemyAttackResolvedEvent, EnemyDamagedEvent, EnemyDiedEvent, EnemySpawnedEvent, EnemyState } from '@/core/GameEvents';
 import type { EnemyDefinition } from '@/enemies/EnemyTypes';
 
 interface TimedEffect {
@@ -16,7 +17,7 @@ export class EnemyBase {
   private readonly group = new THREE.Group();
   private readonly materials: THREE.MeshStandardMaterial[] = [];
   private readonly effects: TimedEffect[] = [];
-  private readonly legs: THREE.Mesh[] = [];
+  private readonly legs: THREE.Group[] = [];
   private readonly lastPosition = new THREE.Vector3();
   private readonly healthFill: THREE.Mesh;
   private hp: number;
@@ -42,25 +43,14 @@ export class EnemyBase {
     this.group.userData.enemyId = id;
     this.group.userData.enemyType = definition.type;
 
-    const body = this.createPart(
-      new THREE.BoxGeometry(GameConfig.ENEMY.BODY_WIDTH, GameConfig.ENEMY.BODY_HEIGHT, GameConfig.ENEMY.BODY_DEPTH),
-      definition.color,
-      'body'
-    );
-    body.position.y = GameConfig.ENEMY.BODY_Y;
-    this.group.add(body);
-
-    const headGeometry = definition.type === 'elite'
-      ? new THREE.OctahedronGeometry(GameConfig.ENEMY.HEAD_RADIUS)
-      : new THREE.SphereGeometry(GameConfig.ENEMY.HEAD_RADIUS, GameConfig.ENEMY.BODY_SPHERE_SEGMENTS, GameConfig.ENEMY.BODY_SPHERE_RINGS);
-    const head = this.createPart(headGeometry, definition.color, 'head');
-    head.position.y = GameConfig.ENEMY.HEAD_Y;
-    this.group.add(head);
-
-    this.addHumanoidDetails();
+    const model = new BlockCharacterModel(definition.type);
+    model.group.traverse((object) => {
+      if (object instanceof THREE.Mesh) object.userData.enemyId = id;
+    });
+    this.materials.push(...model.materials);
+    this.legs.push(...model.legs);
+    this.group.add(model.group);
     this.addWeapon();
-    if (definition.type === 'heavy') this.addHeavyArmor();
-    if (definition.type === 'elite') this.addEliteCrest();
 
     this.healthFill = this.createHealthBar();
     this.scene.add(this.group);
@@ -77,38 +67,6 @@ export class EnemyBase {
     this.eventBus.emit('enemy:spawned', spawned);
   }
 
-  private createPart(geometry: THREE.BufferGeometry, color: number, hitZone: EnemyHitZone): THREE.Mesh {
-    const material = new THREE.MeshStandardMaterial({
-      color,
-      roughness: GameConfig.ENEMY.MATERIAL_ROUGHNESS,
-      metalness: this.definition.type === 'elite' ? GameConfig.ENEMY.ELITE_MATERIAL_METALNESS : GameConfig.ENEMY.MATERIAL_METALNESS,
-      transparent: true,
-    });
-    this.materials.push(material);
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData.enemyId = this.id;
-    mesh.userData.enemyHitZone = hitZone;
-    return mesh;
-  }
-
-  private createGearPart(geometry: THREE.BufferGeometry, hitZone: EnemyHitZone): THREE.Mesh {
-    const material = new THREE.MeshStandardMaterial({
-      color: GameConfig.ENEMY.GEAR_COLOR,
-      roughness: GameConfig.ENEMY.GEAR_ROUGHNESS,
-      metalness: GameConfig.ENEMY.GEAR_METALNESS,
-      transparent: true,
-    });
-    this.materials.push(material);
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData.enemyId = this.id;
-    mesh.userData.enemyHitZone = hitZone;
-    return mesh;
-  }
-
   private createEquipment(geometry: THREE.BufferGeometry, color: number): THREE.Mesh {
     const material = new THREE.MeshStandardMaterial({
       color,
@@ -122,48 +80,6 @@ export class EnemyBase {
     mesh.receiveShadow = true;
     mesh.userData.raycastIgnore = true;
     return mesh;
-  }
-
-  private addHumanoidDetails(): void {
-    const waist = this.createGearPart(
-      new THREE.BoxGeometry(GameConfig.ENEMY.WAIST_WIDTH, GameConfig.ENEMY.WAIST_HEIGHT, GameConfig.ENEMY.WAIST_DEPTH),
-      'body'
-    );
-    waist.position.y = GameConfig.ENEMY.WAIST_Y;
-    this.group.add(waist);
-
-    for (const sign of [-1, 1]) {
-      const leg = this.createPart(
-        new THREE.BoxGeometry(GameConfig.ENEMY.LEG_WIDTH, GameConfig.ENEMY.LEG_HEIGHT, GameConfig.ENEMY.LEG_DEPTH),
-        this.definition.color,
-        'body'
-      );
-      leg.position.set(GameConfig.ENEMY.LEG_X * sign, GameConfig.ENEMY.LEG_Y, 0);
-      this.group.add(leg);
-      this.legs.push(leg);
-
-      const arm = this.createPart(
-        new THREE.BoxGeometry(GameConfig.ENEMY.ARM_WIDTH, GameConfig.ENEMY.ARM_HEIGHT, GameConfig.ENEMY.ARM_DEPTH),
-        this.definition.color,
-        'body'
-      );
-      arm.position.set(GameConfig.ENEMY.ARM_X * sign, GameConfig.ENEMY.ARM_Y, GameConfig.ENEMY.ARM_Z);
-      this.group.add(arm);
-
-      const shoulder = this.createGearPart(
-        new THREE.BoxGeometry(GameConfig.ENEMY.SHOULDER_WIDTH, GameConfig.ENEMY.SHOULDER_HEIGHT, GameConfig.ENEMY.SHOULDER_DEPTH),
-        this.definition.type === 'heavy' ? 'armor' : 'body'
-      );
-      shoulder.position.set(GameConfig.ENEMY.ARM_X * sign, GameConfig.ENEMY.SHOULDER_Y, 0);
-      this.group.add(shoulder);
-    }
-
-    const backpack = this.createGearPart(
-      new THREE.BoxGeometry(GameConfig.ENEMY.BACKPACK_WIDTH, GameConfig.ENEMY.BACKPACK_HEIGHT, GameConfig.ENEMY.BACKPACK_DEPTH),
-      'body'
-    );
-    backpack.position.set(0, GameConfig.ENEMY.BACKPACK_Y, GameConfig.ENEMY.BACKPACK_Z);
-    this.group.add(backpack);
   }
 
   private addWeapon(): void {
@@ -200,26 +116,6 @@ export class EnemyBase {
     );
     magazine.position.set(GameConfig.ENEMY.WEAPON_X, GameConfig.ENEMY.WEAPON_MAG_Y, GameConfig.ENEMY.WEAPON_MAG_Z);
     this.group.add(magazine);
-  }
-
-  private addHeavyArmor(): void {
-    const armor = this.createPart(
-      new THREE.BoxGeometry(GameConfig.ENEMY.HEAVY_ARMOR_WIDTH, GameConfig.ENEMY.BODY_HEIGHT * GameConfig.ENEMY.HEAVY_ARMOR_HEIGHT_SCALE, GameConfig.ENEMY.BODY_DEPTH * GameConfig.ENEMY.HEAVY_ARMOR_DEPTH_SCALE),
-      this.definition.color,
-      'armor'
-    );
-    armor.position.y = GameConfig.ENEMY.BODY_Y + GameConfig.ENEMY.BODY_HEIGHT * GameConfig.ENEMY.HEAVY_ARMOR_Y_OFFSET_SCALE;
-    this.group.add(armor);
-  }
-
-  private addEliteCrest(): void {
-    const crest = this.createPart(
-      new THREE.ConeGeometry(GameConfig.ENEMY.ELITE_CREST_RADIUS, GameConfig.ENEMY.ELITE_CREST_HEIGHT, GameConfig.ENEMY.CONE_SEGMENTS),
-      this.definition.color,
-      'head'
-    );
-    crest.position.y = GameConfig.ENEMY.HEAD_Y + GameConfig.ENEMY.HEAD_RADIUS + GameConfig.ENEMY.ELITE_CREST_HEIGHT * GameConfig.ENEMY.ELITE_CREST_Y_OFFSET_SCALE;
-    this.group.add(crest);
   }
 
   private createHealthBar(): THREE.Mesh {
