@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { EventBus } from '@/core/EventBus';
-import type { AmmoChangedEvent } from '@/core/GameEvents';
+import type { AmmoChangedEvent, MeleeHitEvent, WeaponChangedEvent, WeaponKind } from '@/core/GameEvents';
 import type { EnemyDiedEvent, EnemySpawnedEvent, EnemyTransformEvent, PlayerHealthEvent, PlayerTransformEvent, ScoreChangedEvent, WaveCompletedEvent, WaveStartedEvent, WeaponAimChangedEvent } from '@/core/GameEvents';
 import { GameConfig } from '@/config/GameConfig';
 import type { GameStateChangedEvent } from '@/core/GameEvents';
@@ -11,6 +11,7 @@ export class HUD {
   private readonly magazineElement: HTMLElement;
   private readonly reserveElement: HTMLElement;
   private readonly statusElement: HTMLElement;
+  private readonly weaponLabelElement: HTMLElement;
   private readonly crosshair: HTMLElement;
   private readonly hpFill: HTMLElement;
   private readonly hpValue: HTMLElement;
@@ -27,6 +28,8 @@ export class HUD {
   private readonly radarBlips = new Map<string, HTMLElement>();
   private readonly playerPosition = new THREE.Vector3();
   private readonly playerForward = new THREE.Vector3(0, 0, -1);
+  private currentWeapon: WeaponKind = 'rifle';
+  private ammoState: AmmoChangedEvent | null = null;
 
   constructor() {
     this.eventBus = EventBus.getInstance();
@@ -60,6 +63,7 @@ export class HUD {
       </div>
       <div class="wave-announcement"><span class="wave-kicker">INCOMING</span><strong>WAVE 01</strong><small>3 HOSTILES</small></div>
       <div class="damage-overlay"></div>
+      <div class="melee-impact-ring"></div>
       <div class="ammo-panel">
         <div class="weapon-label"><span class="weapon-icon">R</span> SERVICE RIFLE</div>
         <div class="ammo-row">
@@ -69,7 +73,7 @@ export class HUD {
         </div>
         <div class="ammo-status">SEMI / AUTO</div>
       </div>
-      <div class="controls-hint">LMB FIRE <b>·</b> RMB AIM <b>·</b> R RELOAD</div>
+      <div class="controls-hint">1 RIFLE <b>·</b> 2 KNIFE <b>·</b> Q SWAP <b>·</b> LMB ATTACK</div>
     `;
 
     this.style = document.createElement('style');
@@ -117,6 +121,8 @@ export class HUD {
       .wave-announcement small { color: #91acaa; font-size: 9px; letter-spacing: 2px; }
       .damage-overlay { position: absolute; inset: 0; opacity: 0; background: radial-gradient(circle, transparent 42%, rgba(255, 45, 35, .42) 100%); transition: opacity .16s ease; }
       .damage-overlay.visible { opacity: 1; }
+      .melee-impact-ring { position: absolute; left: 50%; top: 50%; width: 72px; height: 72px; opacity: 0; transform: translate(-50%, -50%) scale(.35) rotate(18deg); border: 3px solid rgba(143, 255, 224, .92); border-radius: 50%; box-shadow: 0 0 14px #8fffe0, inset 0 0 12px rgba(255, 255, 255, .75); }
+      .melee-impact-ring.visible { animation: melee-impact ${GameConfig.WEAPON.KNIFE_IMPACT_PULSE_DURATION_MS}ms ease-out; }
       .weapon-label { color: #91acaa; font-size: 10px; font-weight: 700; letter-spacing: 2.2px; }
       .weapon-icon { display: inline-grid; place-items: center; width: 17px; height: 17px; margin-right: 8px; color: #10201f; background: #83e1c0; font-size: 10px; letter-spacing: 0; }
       .ammo-row { display: flex; align-items: baseline; justify-content: flex-end; height: 53px; margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -128,9 +134,14 @@ export class HUD {
       .ammo-panel.empty { border-right-color: #ff655f; }
       .ammo-panel.empty .ammo-magazine, .ammo-panel.empty .ammo-status { color: #ff655f; }
       .ammo-panel.reloading .ammo-status { color: #83e1c0; animation: hud-pulse .7s ease-in-out infinite alternate; }
+      .ammo-panel.knife .ammo-row { visibility: hidden; }
+      .ammo-panel.knife { border-right-color: #8fffe0; }
+      .ammo-panel.knife .ammo-status { color: #8fffe0; }
+      .hud-crosshair.knife .crosshair-line { transform: scale(.72); }
       .controls-hint { position: absolute; right: 40px; bottom: 16px; color: rgba(177, 202, 197, .5); font-size: 9px; letter-spacing: 1.7px; }
       .controls-hint b { margin: 0 5px; color: #83e1c0; }
       @keyframes hud-pulse { to { opacity: .38; } }
+      @keyframes melee-impact { 0% { opacity: 1; transform: translate(-50%, -50%) scale(.35) rotate(18deg); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.65) rotate(-12deg); } }
       @keyframes radar-scan { to { transform: rotate(360deg); } }
       @media (max-width: 640px) { .ammo-panel { right: 18px; bottom: 26px; transform: scale(.78); transform-origin: bottom right; } .status-panel { left: 18px; bottom: 26px; transform: scale(.78); transform-origin: bottom left; } .mission-panel { left: 18px; top: 20px; transform: scale(.82); transform-origin: top left; } .radar-panel { right: 14px; top: 14px; transform: scale(.7); transform-origin: top right; } .controls-hint { display: none; } }
     `;
@@ -141,6 +152,7 @@ export class HUD {
     this.magazineElement = this.requireElement('.ammo-magazine');
     this.reserveElement = this.requireElement('.ammo-reserve');
     this.statusElement = this.requireElement('.ammo-status');
+    this.weaponLabelElement = this.requireElement('.weapon-label');
     this.crosshair = this.requireElement('.hud-crosshair');
     this.hpFill = this.requireElement('.hp-fill');
     this.hpValue = this.requireElement('.hp-value');
@@ -164,6 +176,9 @@ export class HUD {
     this.eventBus.on('enemy:transformChanged', this.onEnemyTransformChanged);
     this.eventBus.on('enemy:died', this.onEnemyDied);
     this.eventBus.on('weapon:aimChanged', this.onAimChanged);
+    this.eventBus.on('weapon:changed', this.onWeaponChanged);
+    this.eventBus.on('weapon:meleeSwing', this.onMelee);
+    this.eventBus.on('combat:meleeHit', this.onMeleeHit);
   }
 
   private requireElement(selector: string): HTMLElement {
@@ -175,6 +190,12 @@ export class HUD {
   private onAmmoChanged = (...args: unknown[]): void => {
     const ammo = args[0] as AmmoChangedEvent | undefined;
     if (!ammo) return;
+    this.ammoState = ammo;
+    if (this.currentWeapon !== 'rifle') return;
+    this.renderAmmo(ammo);
+  };
+
+  private renderAmmo(ammo: AmmoChangedEvent): void {
     this.magazineElement.textContent = ammo.magazine.toString().padStart(2, '0');
     this.reserveElement.textContent = ammo.reserve.toString().padStart(2, '0');
     this.statusElement.textContent = ammo.reloading ? 'RELOADING…' : ammo.magazine === 0 ? 'MAGAZINE EMPTY' : 'SEMI / AUTO';
@@ -182,6 +203,37 @@ export class HUD {
     panel?.classList.toggle('low', ammo.magazine > 0 && ammo.magazine <= Math.ceil(ammo.magazineSize * 0.2));
     panel?.classList.toggle('empty', ammo.magazine === 0);
     panel?.classList.toggle('reloading', ammo.reloading);
+  }
+
+  private onWeaponChanged = (...args: unknown[]): void => {
+    const event = args[0] as WeaponChangedEvent | undefined;
+    if (!event) return;
+    this.currentWeapon = event.weapon;
+    const panel = this.root.querySelector('.ammo-panel');
+    panel?.classList.toggle('knife', event.weapon === 'knife');
+    this.crosshair.classList.toggle('knife', event.weapon === 'knife');
+    if (event.weapon === 'knife') {
+      this.weaponLabelElement.innerHTML = '<span class="weapon-icon">2</span> TACTICAL KNIFE';
+      this.statusElement.textContent = 'MELEE / UNLIMITED';
+      return;
+    }
+    this.weaponLabelElement.innerHTML = '<span class="weapon-icon">1</span> SERVICE RIFLE';
+    if (this.ammoState) this.renderAmmo(this.ammoState);
+  };
+
+  private onMelee = (): void => {
+    this.pulseClass('firing');
+  };
+
+  private onMeleeHit = (...args: unknown[]): void => {
+    const event = args[0] as MeleeHitEvent | undefined;
+    if (!event?.enemyHit) return;
+    const ring = this.root.querySelector('.melee-impact-ring');
+    ring?.classList.remove('visible');
+    this.nextFrame(() => {
+      ring?.classList.add('visible');
+      this.schedule(() => ring?.classList.remove('visible'), GameConfig.WEAPON.KNIFE_IMPACT_PULSE_DURATION_MS);
+    });
   };
 
   private onShoot = (): void => {
@@ -336,6 +388,9 @@ export class HUD {
     this.eventBus.off('enemy:transformChanged', this.onEnemyTransformChanged);
     this.eventBus.off('enemy:died', this.onEnemyDied);
     this.eventBus.off('weapon:aimChanged', this.onAimChanged);
+    this.eventBus.off('weapon:changed', this.onWeaponChanged);
+    this.eventBus.off('weapon:meleeSwing', this.onMelee);
+    this.eventBus.off('combat:meleeHit', this.onMeleeHit);
     this.timeoutIds.forEach((id) => clearTimeout(id));
     this.animationFrameIds.forEach((id) => cancelAnimationFrame(id));
     this.timeoutIds.clear();

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
-import type { PlayerShootEvent, ShotHitEvent } from '@/core/GameEvents';
+import type { MeleeHitEvent, PlayerMeleeEvent, PlayerShootEvent, ShotHitEvent } from '@/core/GameEvents';
 
 interface TracerMaterial {
   material: THREE.MeshBasicMaterial;
@@ -24,7 +24,35 @@ export class RaycastShooter {
     this.scene = scene;
     this.eventBus = EventBus.getInstance();
     this.eventBus.on('player:shoot', this.onPlayerShoot);
+    this.eventBus.on('player:melee', this.onPlayerMelee);
   }
+
+  private onPlayerMelee = (...args: unknown[]): void => {
+    const attack = args[0] as PlayerMeleeEvent | undefined;
+    if (!attack) return;
+    this.raycaster.set(attack.origin, attack.direction);
+    this.raycaster.far = attack.range;
+    const hit = this.raycaster.intersectObjects(this.scene.children, true)
+      .find((intersection) => !this.isIgnored(intersection.object));
+    if (!hit) return;
+    const normal = hit.face?.normal.clone().transformDirection(hit.object.matrixWorld)
+      ?? attack.direction.clone().negate();
+    const event: ShotHitEvent = {
+      point: hit.point.clone(),
+      normal,
+      object: hit.object,
+      damage: attack.damage,
+      source: 'knife',
+    };
+    this.eventBus.emit('combat:shotHit', event);
+    const meleeHit: MeleeHitEvent = {
+      point: event.point.clone(),
+      normal: event.normal.clone(),
+      object: event.object,
+      enemyHit: this.isEnemy(event.object),
+    };
+    this.eventBus.emit('combat:meleeHit', meleeHit);
+  };
 
   private onPlayerShoot = (...args: unknown[]): void => {
     const shot = args[0] as PlayerShootEvent | undefined;
@@ -53,6 +81,7 @@ export class RaycastShooter {
       normal,
       object: hit.object,
       damage: shot.damage,
+      source: 'rifle',
     };
     this.eventBus.emit('combat:shotHit', event);
   };
@@ -61,6 +90,15 @@ export class RaycastShooter {
     let current: THREE.Object3D | null = object;
     while (current) {
       if (current.userData.raycastIgnore === true) return true;
+      current = current.parent;
+    }
+    return false;
+  }
+
+  private isEnemy(object: THREE.Object3D): boolean {
+    let current: THREE.Object3D | null = object;
+    while (current) {
+      if (typeof current.userData.enemyId === 'string') return true;
       current = current.parent;
     }
     return false;
@@ -136,6 +174,7 @@ export class RaycastShooter {
 
   dispose(): void {
     this.eventBus.off('player:shoot', this.onPlayerShoot);
+    this.eventBus.off('player:melee', this.onPlayerMelee);
     this.tracers.forEach((tracer) => this.disposeTracer(tracer));
     this.tracers.length = 0;
   }

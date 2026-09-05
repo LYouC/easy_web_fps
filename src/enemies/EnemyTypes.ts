@@ -66,7 +66,9 @@ export function getEnemyDefinition(type: EnemyType, profile: DifficultyProfile =
   const definition = DEFINITIONS[type];
   return {
     ...definition,
+    maxHp: definition.maxHp * profile.enemyHealthMultiplier,
     damage: definition.damage * profile.enemyDamageMultiplier,
+    attackInterval: definition.attackInterval * profile.enemyAttackIntervalMultiplier,
     accuracy: Math.min(0.99, definition.accuracy * profile.enemyAccuracyMultiplier),
     reactionTime: definition.reactionTime * profile.enemyReactionTimeMultiplier,
   };

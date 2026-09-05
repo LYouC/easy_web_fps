@@ -1,6 +1,6 @@
 import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
-import type { GameStateChangedEvent } from '@/core/GameEvents';
+import type { EnemyDamagedEvent, GameStateChangedEvent, MeleeHitEvent } from '@/core/GameEvents';
 
 export class AudioManager {
   private readonly eventBus = EventBus.getInstance();
@@ -14,6 +14,8 @@ export class AudioManager {
   constructor() {
     this.eventBus.on('game:stateChanged', this.onGameStateChanged);
     this.eventBus.on('player:shoot', this.onShoot);
+    this.eventBus.on('weapon:meleeSwing', this.onMelee);
+    this.eventBus.on('combat:meleeHit', this.onMeleeHit);
     this.eventBus.on('weapon:dryFire', this.onDryFire);
     this.eventBus.on('enemy:attacked', this.onEnemyAttack);
     this.eventBus.on('enemy:damaged', this.onEnemyHit);
@@ -143,6 +145,73 @@ export class AudioManager {
     oscillator.stop(now + 0.035);
   };
 
+  private onMelee = (): void => {
+    this.playFilteredNoise(
+      'bandpass',
+      GameConfig.WEAPON.KNIFE_SWING_FILTER_START,
+      GameConfig.WEAPON.KNIFE_SWING_FILTER_END,
+      GameConfig.WEAPON.KNIFE_SWING_FILTER_Q,
+      GameConfig.WEAPON.KNIFE_SWING_AUDIO_DURATION,
+      GameConfig.WEAPON.KNIFE_SWING_AUDIO_VOLUME,
+      GameConfig.WEAPON.KNIFE_SWING_AUDIO_ATTACK
+    );
+  };
+
+  private onMeleeHit = (...args: unknown[]): void => {
+    const event = args[0] as MeleeHitEvent | undefined;
+    if (!event?.enemyHit) return;
+    this.playFilteredNoise(
+      'lowpass',
+      GameConfig.WEAPON.KNIFE_IMPACT_FILTER_START,
+      GameConfig.WEAPON.KNIFE_IMPACT_FILTER_END,
+      GameConfig.WEAPON.KNIFE_IMPACT_FILTER_Q,
+      GameConfig.WEAPON.KNIFE_IMPACT_NOISE_DURATION,
+      GameConfig.WEAPON.KNIFE_IMPACT_NOISE_VOLUME,
+      0
+    );
+    this.playTone(
+      'sine',
+      GameConfig.WEAPON.KNIFE_IMPACT_FREQUENCY_START,
+      GameConfig.WEAPON.KNIFE_IMPACT_FREQUENCY_END,
+      GameConfig.WEAPON.KNIFE_HIT_KICK_DURATION,
+      GameConfig.WEAPON.KNIFE_IMPACT_VOLUME
+    );
+  };
+
+  private playFilteredNoise(
+    type: BiquadFilterType,
+    startFrequency: number,
+    endFrequency: number,
+    q: number,
+    duration: number,
+    volume: number,
+    attack: number
+  ): void {
+    const context = this.getContext();
+    const now = context.currentTime;
+    const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    filter.type = type;
+    filter.Q.value = q;
+    filter.frequency.setValueAtTime(startFrequency, now);
+    filter.frequency.exponentialRampToValueAtTime(endFrequency, now + duration);
+    if (attack > 0) {
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(volume, now + attack);
+    } else {
+      gain.gain.setValueAtTime(volume, now);
+    }
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    source.connect(filter).connect(gain).connect(this.getOutput());
+    source.start(now);
+    source.stop(now + duration);
+  }
+
   private playTone(type: OscillatorType, start: number, end: number, duration: number, volume: number): void {
     const context = this.getContext();
     const now = context.currentTime;
@@ -159,7 +228,11 @@ export class AudioManager {
   }
 
   private onEnemyAttack = (): void => { this.playTone('square', GameConfig.ENEMY.ATTACK_FREQUENCY_START, GameConfig.ENEMY.ATTACK_FREQUENCY_END, GameConfig.ENEMY.ATTACK_DURATION, GameConfig.ENEMY.ATTACK_VOLUME); };
-  private onEnemyHit = (): void => { this.playTone('triangle', GameConfig.ENEMY.HIT_FREQUENCY, GameConfig.ENEMY.HIT_FREQUENCY, GameConfig.ENEMY.HIT_DURATION, GameConfig.ENEMY.HIT_VOLUME); };
+  private onEnemyHit = (...args: unknown[]): void => {
+    const event = args[0] as EnemyDamagedEvent | undefined;
+    if (event?.source === 'knife') return;
+    this.playTone('triangle', GameConfig.ENEMY.HIT_FREQUENCY, GameConfig.ENEMY.HIT_FREQUENCY, GameConfig.ENEMY.HIT_DURATION, GameConfig.ENEMY.HIT_VOLUME);
+  };
   private onEnemyDeath = (): void => { this.playTone('sawtooth', GameConfig.ENEMY.DEATH_FREQUENCY_START, GameConfig.ENEMY.DEATH_FREQUENCY_END, GameConfig.ENEMY.DEATH_DURATION_AUDIO, GameConfig.ENEMY.DEATH_VOLUME); };
   private onEnemySpawn = (): void => { this.playTone('sine', GameConfig.ENEMY.SPAWN_FREQUENCY_START, GameConfig.ENEMY.SPAWN_FREQUENCY_END, GameConfig.ENEMY.SPAWN_DURATION_AUDIO, GameConfig.ENEMY.SPAWN_VOLUME); };
   private onPickupSpawn = (): void => { this.playTone('sine', GameConfig.PICKUP.SPAWN_FREQUENCY_START, GameConfig.PICKUP.SPAWN_FREQUENCY_END, GameConfig.PICKUP.SPAWN_DURATION_AUDIO, GameConfig.PICKUP.SPAWN_VOLUME); };
@@ -169,6 +242,8 @@ export class AudioManager {
     this.disposed = true;
     this.eventBus.off('game:stateChanged', this.onGameStateChanged);
     this.eventBus.off('player:shoot', this.onShoot);
+    this.eventBus.off('weapon:meleeSwing', this.onMelee);
+    this.eventBus.off('combat:meleeHit', this.onMeleeHit);
     this.eventBus.off('weapon:dryFire', this.onDryFire);
     this.eventBus.off('enemy:attacked', this.onEnemyAttack);
     this.eventBus.off('enemy:damaged', this.onEnemyHit);

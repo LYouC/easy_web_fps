@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
-import type { PlayerShootEvent, WeaponAimChangedEvent } from '@/core/GameEvents';
+import type { PlayerShootEvent, WeaponAimChangedEvent, WeaponChangedEvent } from '@/core/GameEvents';
 import { RifleModel } from '@/weapons/RifleModel';
 import { ShellEjectionSystem } from '@/weapons/ShellEjectionSystem';
 import { WeaponAnimator } from '@/weapons/WeaponAnimator';
@@ -16,6 +16,8 @@ export class WeaponView {
   private readonly shellEjectionSystem: ShellEjectionSystem;
   private aiming = false;
   private flashRemaining = 0;
+  private equipped = true;
+  private equipProgress = 1;
 
   constructor(camera: THREE.PerspectiveCamera) {
     this.camera = camera;
@@ -40,6 +42,7 @@ export class WeaponView {
     this.eventBus.on('weapon:reloadStarted', this.onReloadStarted);
     this.eventBus.on('weapon:reloadCompleted', this.onReloadCompleted);
     this.eventBus.on('weapon:aimChanged', this.onAimChanged);
+    this.eventBus.on('weapon:changed', this.onWeaponChanged);
   }
 
   private buildMuzzleFlash(): THREE.Group {
@@ -66,6 +69,14 @@ export class WeaponView {
     this.muzzleLight.intensity = 4;
   };
 
+  private onWeaponChanged = (...args: unknown[]): void => {
+    const event = args[0] as WeaponChangedEvent | undefined;
+    if (event) {
+      this.equipped = event.weapon === 'rifle';
+      if (this.equipped) this.group.visible = true;
+    }
+  };
+
   private onReloadStarted = (...args: unknown[]): void => {
     const duration = typeof args[0] === 'number' ? args[0] : GameConfig.WEAPON.RIFLE_RELOAD_TIME;
     this.animator.startReload(duration);
@@ -88,9 +99,25 @@ export class WeaponView {
     }
 
     const pose = this.animator.update(delta, this.aiming);
+    const equipStep = delta / GameConfig.WEAPON.WEAPON_SWITCH_DURATION;
+    this.equipProgress = THREE.MathUtils.clamp(
+      this.equipProgress + (this.equipped ? equipStep : -equipStep),
+      0,
+      1
+    );
+    const holster = 1 - this.ease(this.equipProgress);
     this.group.position.copy(pose.position);
+    this.group.position.y -= GameConfig.WEAPON.WEAPON_HOLSTER_DROP * holster;
+    this.group.position.z += GameConfig.WEAPON.WEAPON_HOLSTER_PULLBACK * holster;
     this.group.rotation.copy(pose.rotation);
+    this.group.rotation.x += GameConfig.WEAPON.WEAPON_HOLSTER_ROTATION_X * holster;
+    this.group.rotation.z += GameConfig.WEAPON.WEAPON_HOLSTER_ROTATION_Z * holster;
+    if (!this.equipped && this.equipProgress === 0) this.group.visible = false;
     this.shellEjectionSystem.update(delta);
+  }
+
+  private ease(value: number): number {
+    return value * value * (3 - 2 * value);
   }
 
   dispose(): void {
@@ -98,6 +125,7 @@ export class WeaponView {
     this.eventBus.off('weapon:reloadStarted', this.onReloadStarted);
     this.eventBus.off('weapon:reloadCompleted', this.onReloadCompleted);
     this.eventBus.off('weapon:aimChanged', this.onAimChanged);
+    this.eventBus.off('weapon:changed', this.onWeaponChanged);
     this.shellEjectionSystem.dispose();
     this.camera.remove(this.group);
 

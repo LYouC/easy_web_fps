@@ -6,7 +6,7 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 
 ## Current Phase
 
-**Post-P7 — Weapon Presentation Refresh** ✅ Complete · **Next phase not yet defined**
+**P8 — Melee Loadout & Difficulty Expansion** ✅ Complete · **Next phase not yet defined**
 
 ## Module Status
 
@@ -15,14 +15,14 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 | core/ | ✅ Done | Engine, EventBus, InputManager |
 | scene/ | ✅ Done | SceneBase, SceneManager, MainArena |
 | player/ | ✅ Done | FPSCamera, Movement, Player |
-| weapons/ | ✅ Done | WeaponBase, Rifle, centered RMB ADS, modular sci-fi rifle model, reload animation, shell ejection |
+| weapons/ | ✅ Done | Rifle plus switchable tactical knife, centered RMB ADS, modular models, reload animation, shell ejection |
 | combat/ | ✅ Done | RaycastShooter, DamageSystem, CoverSystem, layered hit effects |
 | enemies/ | ✅ Done | Tactical range control, strafing, sight memory, suppression cover, detailed models and weapons |
 | pickups/ | ✅ Done | Randomized map/drop ammo, PickupBase, AmmoPickup, PickupSpawner, spawn/amount rules |
 | world/ | ✅ Done | ColliderManager, shared building sources, factory/scenic environment and dressing props |
 | ui/ | ✅ Done | Combat HUD, player-relative enemy radar, and owned responsive menu screens |
 | audio/ | ✅ Done | Rifle/enemy/pickup cues plus lifecycle-safe procedural ambience |
-| config/ | ✅ Done | GameConfig |
+| config/ | ✅ Done | GameConfig and full Easy/Normal/Hard combat profiles |
 
 ## Architecture Rules
 
@@ -128,6 +128,27 @@ npm run build      # Type-check + build, no errors
 | 2026-09-05 | First-person rifle presentation is split into model, animation, and shell systems | Keeps metallic sci-fi geometry, moving reload parts, recoil/ADS poses, and bounded casing lifecycles independently maintainable behind `WeaponView` events |
 | 2026-09-05 | ADS uses a raised open holographic window on the exact camera axis | The complete sight opening remains unobstructed by the receiver and centers the HUD crosshair geometrically |
 | 2026-09-05 | Platform grounding uses contact tolerance and a circular footprint | Prevents tiny floating-point drift at a box top from entering the side-penetration branch and pushing the player off elevated surfaces |
+| 2026-09-05 | Loadout uses 1/2 slots plus Q quick swap | The rifle retains its ammo/reload state while the tactical knife provides a permanent short-range fallback without bypassing EventBus combat settlement |
+| 2026-09-05 | Difficulty profiles scale the complete pressure loop | Wave size/growth, HP, damage, fire interval, accuracy, reaction time, map supply timing, and enemy drop chance now form distinct Easy/Normal/Hard tiers while Normal remains the baseline |
+| 2026-09-05 | Weapon changes use synchronized holster/draw transitions | A configured switch lockout matches both view animations so attacks cannot occur before the incoming weapon is ready |
+| 2026-09-05 | Knife damage resolves at the visual strike frame | A reference-driven, upright single-edged tactical knife uses a lower forward grip; its left sharp edge leads the fixed upper-right to lower-left slash while a narrow straight child-node light streak follows the edge |
+| 2026-09-05 | Knife edge is presented forward with lifted metallic values | A stronger negative yaw points the cutting edge primarily into view depth while preserving blade readability; brighter gunmetal, an emissive silver edge, and lower roughness keep the knife legible in shadow |
+
+## P8 Verification
+
+- `npm run build` and `npm run test:p4` through `npm run test:p8` — passed on 2026-09-05.
+- GitHub Actions CI uses Node.js 22 with `npm ci`, `npm run build`, and the unified `npm test` command for main, pull requests, and version tags.
+- Knife attacks resolve on the visible strike frame as range-bounded raycasts through the existing hit/damage/death/score pipeline and cannot pass through world geometry.
+- Weapon holster/draw interpolation, attack lockout, three-stage knife motion, additive blade trail, enemy-only impact kick/ring/audio, and cleanup hooks are covered by P8 checks.
+- Difficulty ordering is verified for enemy count growth, HP, damage, attack interval, accuracy/reaction, map pickup timing, and enemy ammo-drop chance.
+
+## P8 Manual Test Steps
+
+1. Start a run, press 2, and confirm the rifle lowers while the tactical knife draws smoothly; press 1 or Q and confirm the reverse transition with no instant pop and the previous rifle ammo intact.
+2. Confirm the idle weapon is an upright wide-spine tactical knife with the handle below the blade, the point facing up, the bright sharp edge on the left, and sawback detail on the right. Hold LMB near an enemy and verify the left sharp edge leads the upper-right to lower-left travel, its narrow straight core/glow streak remains just outside that edge, and no semicircular trail appears.
+3. Confirm damage resolves while the blade crosses the center of the slash, with filtered whoosh, knife kick, expanded particles, low impact thump, HUD shock ring, death, score, and wave settlement; repeat outside 2.35 m and behind cover to confirm no damage.
+4. Switch to the knife while aiming and confirm ADS immediately releases; pause during a swing and confirm combat animation/timing freezes until resume.
+5. Compare new runs: Easy uses 2 enemies +1/wave, 80% HP, 70% damage, 25% slower firing, and about 47% drops; Normal retains 3 +2/wave and original values; Hard uses 4 +3/wave, 125% HP, 120% damage, 22% faster firing, and about 19% drops.
 
 ## Post-P7 Weapon Presentation Verification
 

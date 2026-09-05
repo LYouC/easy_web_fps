@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "test": "npm run test:p4 && npm run test:p5 && npm run test:p6 && npm run test:p7 && npm run test:p8",
     "test:p4": "node --experimental-strip-types scripts/p4-smoke.ts",
     "test:p5": "node --experimental-strip-types scripts/p5-smoke.ts",
     "test:p6": "node --experimental-strip-types scripts/p6-smoke.ts",
-    "test:p7": "node --experimental-strip-types scripts/p7-smoke.ts"
+    "test:p7": "node --experimental-strip-types scripts/p7-smoke.ts",
+    "test:p8": "node --experimental-strip-types scripts/p8-smoke.ts"
   },
   "keywords": [],
   "author": "",

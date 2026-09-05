@@ -7,8 +7,9 @@ import { Player } from '@/player/Player';
 import { ColliderManager } from '@/world/ColliderManager';
 import { Debug } from '@/core/Debug';
 import { GameConfig } from '@/config/GameConfig';
-import { Rifle } from '@/weapons/Rifle';
 import { WeaponView } from '@/weapons/WeaponView';
+import { WeaponLoadout } from '@/weapons/WeaponLoadout';
+import { KnifeView } from '@/weapons/KnifeView';
 import { RaycastShooter } from '@/combat/RaycastShooter';
 import { HUD } from '@/ui/HUD';
 import { AudioManager } from '@/audio/AudioManager';
@@ -35,8 +36,9 @@ export class MainArena implements SceneBase {
   private player: Player;
   private colliderManager: ColliderManager;
   private debug: Debug;
-  private rifle: Rifle;
+  private weaponLoadout: WeaponLoadout;
   private weaponView: WeaponView;
+  private knifeView: KnifeView;
   private raycastShooter: RaycastShooter;
   private hud: HUD;
   private audioManager: AudioManager;
@@ -86,12 +88,13 @@ export class MainArena implements SceneBase {
     this.raycastShooter = new RaycastShooter(this.scene);
     this.hitEffectSystem = new HitEffectSystem(this.scene);
     this.weaponView = new WeaponView(this.camera);
+    this.knifeView = new KnifeView(this.camera);
     this.aimController = new AimController(this.camera, this.inputManager);
     this.audioManager = new AudioManager();
     this.damageSystem = new DamageSystem();
     this.coverSystem = new CoverSystem();
     this.waveManager = new WaveManager(this.scene, difficulty);
-    this.rifle = new Rifle(this.camera, this.inputManager);
+    this.weaponLoadout = new WeaponLoadout(this.camera, this.inputManager);
     this.pickupSpawner = new PickupSpawner(this.scene, difficulty);
   }
 
@@ -189,7 +192,7 @@ export class MainArena implements SceneBase {
   unload(): void {
     this.eventBus.off('game:stateChanged', this.onGameStateChanged);
     this.pickupSpawner.dispose();
-    this.rifle.dispose();
+    this.weaponLoadout.dispose();
     this.waveManager.dispose();
     this.coverSystem.dispose();
     this.damageSystem.dispose();
@@ -199,6 +202,7 @@ export class MainArena implements SceneBase {
     this.scenicBackdrop.dispose();
     this.colliderManager.dispose();
     this.weaponView.dispose();
+    this.knifeView.dispose();
     this.aimController.dispose();
     this.hitEffectSystem.dispose();
     this.raycastShooter.dispose();
@@ -221,9 +225,10 @@ export class MainArena implements SceneBase {
     if (!this.combatActive) return;
     this.fpsCamera.update();
     this.movement.update(delta);
-    this.rifle.update(delta);
+    this.weaponLoadout.update(delta);
     this.aimController.update(delta);
     this.weaponView.update(delta);
+    this.knifeView.update(delta);
     this.raycastShooter.update(delta);
     this.hitEffectSystem.update(delta);
     const transform: PlayerTransformEvent = {

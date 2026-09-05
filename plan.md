@@ -433,3 +433,14 @@ Key events:
 5. **Ray-based combat** — both player and enemy use raycasting, cover = ray obstruction
 6. **HTML overlay HUD** — simpler than in-world UI, easier to style
 7. **GameConfig constants** — all tunables in one place for easy balancing
+
+### P8 — Melee Loadout & Difficulty Expansion
+
+**Goal**: Preserve a viable combat option at zero ammunition and make every difficulty tier affect the full combat economy.
+
+- [x] Add a tactical knife selected with 2, rifle selected with 1, and Q quick swap while retaining rifle ammunition and reload state.
+- [x] Route short-range knife attacks through the existing raycast, damage, death, score, hit-effect, audio, and lifecycle systems.
+- [x] Scale enemy count and per-wave growth, HP, damage, attack interval, accuracy, reaction time, map pickup timing, and enemy ammo-drop chance by difficulty.
+- [x] Expose loadout controls in the menu/HUD and summarize key difficulty values on selection cards.
+- [x] Add synchronized holster/draw transitions, a reference-driven upright wide-spine single-edged tactical knife with a lower forward grip, attack lockout, a sharp-edge-leading upper-right to lower-left slash, a narrow straight edge-attached core/glow streak, filtered-noise whoosh, and enemy-only layered impact feedback.
+- [x] Turn the knife edge primarily toward view depth and brighten its gunmetal, silver edge, and metallic highlights for clear first-person readability.

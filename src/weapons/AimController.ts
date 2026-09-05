@@ -1,23 +1,25 @@
 import * as THREE from 'three';
 import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
-import type { GameStateChangedEvent, WeaponAimChangedEvent } from '@/core/GameEvents';
+import type { GameStateChangedEvent, WeaponAimChangedEvent, WeaponChangedEvent } from '@/core/GameEvents';
 import { InputManager } from '@/core/InputManager';
 
 export class AimController {
   private readonly eventBus = EventBus.getInstance();
   private aiming = false;
   private active = false;
+  private rifleEquipped = true;
 
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
     private readonly inputManager: InputManager
   ) {
     this.eventBus.on('game:stateChanged', this.onGameStateChanged);
+    this.eventBus.on('weapon:changed', this.onWeaponChanged);
   }
 
   update(delta: number): void {
-    const nextAiming = this.active
+    const nextAiming = this.active && this.rifleEquipped
       && this.inputManager.isPointerLocked()
       && this.inputManager.isMouseButtonDown(2);
     this.setAiming(nextAiming);
@@ -47,8 +49,16 @@ export class AimController {
     }
   };
 
+  private onWeaponChanged = (...args: unknown[]): void => {
+    const event = args[0] as WeaponChangedEvent | undefined;
+    if (!event) return;
+    this.rifleEquipped = event.weapon === 'rifle';
+    if (!this.rifleEquipped) this.setAiming(false);
+  };
+
   dispose(): void {
     this.eventBus.off('game:stateChanged', this.onGameStateChanged);
+    this.eventBus.off('weapon:changed', this.onWeaponChanged);
     this.setAiming(false);
     this.camera.fov = GameConfig.VISUAL.CAMERA_FOV;
     this.camera.updateProjectionMatrix();

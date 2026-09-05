@@ -19,7 +19,8 @@ export class MainMenu {
         <div class="controls-grid">
           <span><b>WASD</b> MOVE</span><span><b>SHIFT</b> SPRINT</span>
           <span><b>SPACE</b> JUMP</span><span><b>LMB</b> FIRE</span>
-          <span><b>RMB</b> AIM</span><span><b>R</b> RELOAD</span><span><b>ESC</b> PAUSE</span>
+          <span><b>RMB</b> AIM</span><span><b>1 / 2</b> RIFLE / KNIFE</span>
+          <span><b>Q</b> QUICK SWAP</span><span><b>R</b> RELOAD</span><span><b>ESC</b> PAUSE</span>
         </div>
         <div class="difficulty-heading">SELECT THREAT LEVEL</div>
         <div class="difficulty-options">

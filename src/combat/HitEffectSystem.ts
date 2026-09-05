@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
-import type { ShotHitEvent } from '@/core/GameEvents';
+import type { MeleeHitEvent, ShotHitEvent } from '@/core/GameEvents';
 
 interface HitEffect {
   object: THREE.Object3D;
@@ -16,6 +16,7 @@ export class HitEffectSystem {
 
   constructor(private readonly scene: THREE.Scene) {
     this.eventBus.on('combat:shotHit', this.onShotHit);
+    this.eventBus.on('combat:meleeHit', this.onMeleeHit);
   }
 
   private onShotHit = (...args: unknown[]): void => {
@@ -29,9 +30,17 @@ export class HitEffectSystem {
     this.createSparks(hit.point, hit.normal, color);
   };
 
-  private createCore(point: THREE.Vector3, normal: THREE.Vector3, color: number): void {
+  private onMeleeHit = (...args: unknown[]): void => {
+    const hit = args[0] as MeleeHitEvent | undefined;
+    if (!hit?.enemyHit) return;
+    this.createCore(hit.point, hit.normal, GameConfig.WEAPON.KNIFE_EDGE_COLOR, 1.8);
+    this.createRing(hit.point, hit.normal, GameConfig.WEAPON.KNIFE_EDGE_COLOR, 2.2);
+    this.createSparks(hit.point, hit.normal, GameConfig.WEAPON.KNIFE_EDGE_COLOR);
+  };
+
+  private createCore(point: THREE.Vector3, normal: THREE.Vector3, color: number, scale: number = 1): void {
     const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(GameConfig.WEAPON.IMPACT_SIZE, 7, 5),
+      new THREE.SphereGeometry(GameConfig.WEAPON.IMPACT_SIZE * scale, 7, 5),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })
     );
     mesh.position.copy(point).addScaledVector(normal, GameConfig.WEAPON.IMPACT_SIZE);
@@ -40,9 +49,13 @@ export class HitEffectSystem {
     this.effects.push({ object: mesh, remaining: GameConfig.WEAPON.IMPACT_DURATION, duration: GameConfig.WEAPON.IMPACT_DURATION });
   }
 
-  private createRing(point: THREE.Vector3, normal: THREE.Vector3, color: number): void {
+  private createRing(point: THREE.Vector3, normal: THREE.Vector3, color: number, scale: number = 1): void {
     const mesh = new THREE.Mesh(
-      new THREE.RingGeometry(GameConfig.WEAPON.IMPACT_RING_SIZE * 0.42, GameConfig.WEAPON.IMPACT_RING_SIZE, 12),
+      new THREE.RingGeometry(
+        GameConfig.WEAPON.IMPACT_RING_SIZE * 0.42 * scale,
+        GameConfig.WEAPON.IMPACT_RING_SIZE * scale,
+        12
+      ),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
     );
     mesh.position.copy(point).addScaledVector(normal, GameConfig.WEAPON.IMPACT_SIZE * 1.2);
@@ -119,6 +132,7 @@ export class HitEffectSystem {
 
   dispose(): void {
     this.eventBus.off('combat:shotHit', this.onShotHit);
+    this.eventBus.off('combat:meleeHit', this.onMeleeHit);
     this.effects.forEach((effect) => this.disposeEffect(effect.object));
     this.effects.length = 0;
   }

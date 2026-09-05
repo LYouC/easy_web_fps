@@ -3,6 +3,7 @@ import type { GameState } from '@/core/GameStateTransitions';
 
 export type { GameState } from '@/core/GameStateTransitions';
 export type Difficulty = 'easy' | 'normal' | 'hard';
+export type WeaponKind = 'rifle' | 'knife';
 
 export interface GameStateChangeRequestEvent {
   target: GameState;
@@ -40,6 +41,24 @@ export interface PlayerShootEvent {
   recoil: number;
 }
 
+export interface PlayerMeleeEvent {
+  origin: THREE.Vector3;
+  direction: THREE.Vector3;
+  damage: number;
+  range: number;
+}
+
+export interface MeleeHitEvent {
+  point: THREE.Vector3;
+  normal: THREE.Vector3;
+  object: THREE.Object3D;
+  enemyHit: boolean;
+}
+
+export interface WeaponChangedEvent {
+  weapon: WeaponKind;
+}
+
 export interface AmmoChangedEvent {
   magazine: number;
   reserve: number;
@@ -72,6 +91,7 @@ export interface ShotHitEvent {
   normal: THREE.Vector3;
   object: THREE.Object3D;
   damage: number;
+  source: WeaponKind;
 }
 
 export type EnemyType = 'normal' | 'heavy' | 'elite';
@@ -92,6 +112,7 @@ export interface EnemyDamagedEvent {
   maxHp: number;
   hitPoint: THREE.Vector3;
   hitZone: EnemyHitZone;
+  source: WeaponKind;
 }
 
 export interface EnemyDiedEvent {

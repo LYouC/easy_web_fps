@@ -53,7 +53,7 @@ export abstract class WeaponBase {
     this.emitAmmoChanged();
   };
 
-  update(delta: number): void {
+  update(delta: number, active: boolean = true): void {
     this.fireCooldown = Math.max(0, this.fireCooldown - delta);
 
     if (this.reloadRemaining > 0) {
@@ -61,11 +61,11 @@ export abstract class WeaponBase {
       if (this.reloadRemaining === 0) this.finishReload();
     }
 
-    const reloadPressed = this.inputManager.isKeyDown('KeyR');
+    const reloadPressed = active && this.inputManager.isKeyDown('KeyR');
     if (reloadPressed && !this.reloadKeyDown) this.startReload();
     this.reloadKeyDown = reloadPressed;
 
-    if (!this.inputManager.isPointerLocked()) return;
+    if (!active || !this.inputManager.isPointerLocked()) return;
 
     if (this.inputManager.isMouseButtonDown(0)) {
       this.tryFire();

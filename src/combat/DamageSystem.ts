@@ -50,6 +50,7 @@ export class DamageSystem {
       maxHp: record.maxHp,
       hitPoint: hit.point.clone(),
       hitZone,
+      source: hit.source,
     };
     this.eventBus.emit('enemy:damaged', damaged);
 
