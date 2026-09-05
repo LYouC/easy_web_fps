@@ -4,6 +4,7 @@ import { PickupSpawnRules } from '../src/pickups/PickupSpawnRules.ts';
 import { AmmoReserve } from '../src/weapons/AmmoReserve.ts';
 import { AmmoAmountRules } from '../src/pickups/AmmoAmountRules.ts';
 import { EnemyTactics } from '../src/enemies/EnemyTactics.ts';
+import { PlayerCollisionMath } from '../src/world/PlayerCollisionMath.ts';
 
 const reserve = new AmmoReserve(140, GameConfig.WEAPON.RIFLE_MAX_RESERVE_AMMO);
 assert.equal(reserve.add(GameConfig.PICKUP.MAP_AMMO_MIN), 10);
@@ -81,5 +82,11 @@ assert.ok(GameConfig.ENEMY.PREFERRED_RANGE_MAX_FACTOR < 1);
 assert.ok(GameConfig.ENEMY.LAST_SEEN_MEMORY > 0);
 assert.ok(GameConfig.WEAPON.RIFLE_RECOIL > 1 && GameConfig.WEAPON.RIFLE_RECOIL < 1.25);
 assert.ok(GameConfig.ENEMY.WEAPON_BARREL_Z + GameConfig.ENEMY.WEAPON_BARREL_LENGTH / 2 <= GameConfig.ENEMY.MUZZLE_FORWARD);
+assert.ok(GameConfig.PLAYER.GROUND_CONTACT_EPSILON > 0);
+assert.equal(PlayerCollisionMath.overlapsFootprint(1.9, 0, -2, 2, -2, 2, GameConfig.PLAYER.RADIUS), true);
+assert.equal(PlayerCollisionMath.overlapsFootprint(2.3, 2.3, -2, 2, -2, 2, GameConfig.PLAYER.RADIUS), false);
+assert.equal(PlayerCollisionMath.isStableTopContact(1.99, 1.985, 2, true, GameConfig.PLAYER.GROUND_CONTACT_EPSILON), true);
+assert.equal(PlayerCollisionMath.isStableTopContact(1.9, 1.89, 2, true, GameConfig.PLAYER.GROUND_CONTACT_EPSILON), false);
+assert.equal(PlayerCollisionMath.isStableTopContact(2, 2.01, 2, false, GameConfig.PLAYER.GROUND_CONTACT_EPSILON), false);
 
 console.log('Gameplay smoke checks passed: randomized ammo, reserve cap, spawn legality, tactical AI decisions, cover timing, recoil, enemy weapon alignment.');

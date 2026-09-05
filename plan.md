@@ -17,7 +17,7 @@ Build a simple FPS game with Three.js: wave-based enemy spawning, ammo pickup, s
 
 | Item | Detail |
 |------|--------|
-| Weapon | Single rifle, muzzle flash, recoil animation |
+| Weapon | Modular sci-fi rifle, ADS optic, muzzle flash, recoil/reload animation, shell ejection |
 | Enemy | 2-3 types (normal/heavy/elite), ray-based shooting, cover obstruction |
 | Spawning | Wave-based, increasing difficulty |
 | Ammo | Map random spawn + enemy kill drop |
@@ -52,7 +52,10 @@ src/
 ├── weapons/                # Weapon layer
 │   ├── WeaponBase.ts       # Base class (ammo, fire rate, damage, recoil)
 │   ├── Rifle.ts            # Rifle implementation
-│   └── WeaponView.ts       # First-person weapon model + muzzle flash + animation
+│   ├── RifleModel.ts       # Procedural sci-fi rifle geometry + movable parts
+│   ├── WeaponAnimator.ts   # ADS, recoil, magazine swap, and bolt animation
+│   ├── ShellEjectionSystem.ts # Bounded casing simulation + cleanup
+│   └── WeaponView.ts       # First-person weapon event/presentation coordinator
 │
 ├── combat/                 # Combat layer
 │   ├── RaycastShooter.ts   # Ray-based shooting (player & enemy)
@@ -75,6 +78,7 @@ src/
 │   ├── FactoryEnvironment.ts # Procedural industrial props, lights, signs, and factory colliders
 │   ├── ScenicBackdrop.ts   # Low-poly hills, vegetation, clouds, coastal rail, and water vista
 │   ├── ColliderManager.ts  # AABB collision registry + query
+│   ├── PlayerCollisionMath.ts # Testable player footprint + stable top-contact rules
 │   └── BuildingTemplates.ts # Reusable building configs
 │
 ├── ui/                     # HUD layer (HTML overlay)
@@ -350,7 +354,7 @@ Key events:
 **Goal**: Improve aiming, hit readability, battlefield awareness, and environmental density without changing P4 combat balance or collision behavior.
 
 **Tasks**:
-- [x] Run-owned RMB ADS with a smooth 75° → 50° FOV transition and centered weapon sight.
+- [x] Run-owned RMB ADS with a smooth 75° → 45° FOV transition and centered weapon sight.
 - [x] Layered procedural hit feedback: impact core, oriented expanding ring, and gravity-driven sparks.
 - [x] Responsive top-right tactical radar driven only by typed player/enemy transform events.
 - [x] Factory dressing from primitives: barrels, pallets, cones, cable reel, and utility cabinets.
@@ -377,6 +381,40 @@ Key events:
 5. Inspect radar on desktop and a sub-640 px viewport; confirm it remains legible and does not cover critical HUD panels.
 6. Tour all new factory dressing and verify it improves composition while remaining decorative, raycast-transparent, and non-colliding.
 7. Repeat three complete game loops and confirm a single ADS response, hit burst, blip per enemy, and prop set with no old event listeners or GPU/DOM residue.
+
+---
+
+### Post-P7 — Weapon Presentation Refresh
+
+**Goal**: Upgrade first-person weapon quality and interaction feedback while fixing optic alignment and elevated-platform stability without changing combat balance.
+
+**Tasks**:
+- [x] Replace the basic rifle mesh with layered gunmetal, machined edges, angular armor, cyan energy accents, and a raised open holographic sight.
+- [x] Split model construction, weapon poses, and casing simulation into `RifleModel`, `WeaponAnimator`, and `ShellEjectionSystem`; keep `WeaponView` as the EventBus-facing coordinator.
+- [x] Add staged reload presentation: weapon handling pose, magazine removal/replacement, and bolt-rack finish synchronized to the existing reload duration.
+- [x] Emit one bounded, gravity-driven, spinning brass casing for each accepted `player:shoot` event and dispose all transient resources on run teardown.
+- [x] Align the complete optic opening with the camera axis by pairing `OPTIC_CENTER_Y` with the inverse configured ADS Y position.
+- [x] Stabilize raised-surface grounding with a contact epsilon, circular player footprint overlap, and a top-contact guard before side-penetration resolution.
+- [x] Extend P4/P7 smoke coverage for collision edge cases and optic/ADS alignment.
+
+**Design notes**:
+- `WeaponAnimator` owns only presentation state and movable model parts; ammo settlement and reload authority remain in `WeaponBase`.
+- Casings are raycast-transparent camera-space effects with a configured active-object cap, lifetime, gravity, spin, and fade interval.
+- The holographic sight has no opaque center geometry. Its full window sits above the receiver, and its geometric center coincides with the HUD crosshair after ADS settles.
+- `PlayerCollisionMath` isolates footprint and top-contact decisions. A player within the configured top-contact tolerance is snapped back to the exact platform height before side collision can push the cylinder toward an edge.
+
+**Automated verification (2026-09-05)**:
+- `npm run build`: passed strict TypeScript and Vite production output.
+- `npm run test:p4`, `npm run test:p5`, `npm run test:p6`, and `npm run test:p7`: passed.
+- A local ADS showcase confirmed the crosshair at the open optic's geometric center after the transition settled.
+- A deterministic raised-platform scenario remained grounded with zero horizontal displacement for 300 consecutive frames.
+
+**Manual verification steps**:
+1. Compare hip and ADS presentation against the bright factory yard; verify gunmetal highlights and cyan details remain legible.
+2. Hold RMB until the transition settles and verify the HUD crosshair is centered inside the complete unobstructed optic window.
+3. Fire bursts and verify one casing per shot exits the right port, tumbles, falls, fades, and never affects raycasts.
+4. Reload from a partially spent magazine and verify removal, replacement, bolt movement, ammo timing, pause freezing, and cleanup.
+5. Jump onto the reachable 2 m box and other elevated solids, stop moving near both center and edge areas, and verify no unexplained lateral push occurs.
 
 ## Enemy Types
 

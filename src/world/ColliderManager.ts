@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import { GameConfig } from '@/config/GameConfig';
 import { EventBus } from '@/core/EventBus';
 import type { WorldAreaClearRequestEvent, WorldRaycastHit, WorldRaycastRequestEvent } from '@/core/GameEvents';
+import { PlayerCollisionMath } from '@/world/PlayerCollisionMath';
 
 export interface AABB {
   min: THREE.Vector3;
@@ -78,16 +80,26 @@ export class ColliderManager {
       const previousFeetY = previousPosition.y - eyeHeight;
       const previousHeadY = previousFeetY + playerHeight;
       const headY = feetY + playerHeight;
-      const withinFootprint = resolved.x >= box.min.x - playerRadius
-        && resolved.x <= box.max.x + playerRadius
-        && resolved.z >= box.min.z - playerRadius
-        && resolved.z <= box.max.z + playerRadius;
+      const withinFootprint = PlayerCollisionMath.overlapsFootprint(
+        resolved.x,
+        resolved.z,
+        box.min.x,
+        box.max.x,
+        box.min.z,
+        box.max.z,
+        playerRadius,
+      );
+      const groundContactEpsilon = GameConfig.PLAYER.GROUND_CONTACT_EPSILON;
 
       if (
         withinFootprint
-        && resolved.y <= previousPosition.y
-        && previousFeetY >= box.max.y
-        && feetY <= box.max.y
+        && PlayerCollisionMath.isStableTopContact(
+          previousFeetY,
+          feetY,
+          box.max.y,
+          resolved.y <= previousPosition.y,
+          groundContactEpsilon,
+        )
       ) {
         resolved.y = box.max.y + eyeHeight;
         feetY = box.max.y;
@@ -107,7 +119,8 @@ export class ColliderManager {
       }
 
       const bodyTop = feetY + playerHeight;
-      const verticallyOverlapping = bodyTop > box.min.y && feetY < box.max.y;
+      const verticallyOverlapping = bodyTop > box.min.y + groundContactEpsilon
+        && feetY < box.max.y - groundContactEpsilon;
       if (!verticallyOverlapping) continue;
 
       const closestX = Math.max(box.min.x, Math.min(resolved.x, box.max.x));

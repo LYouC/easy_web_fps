@@ -6,7 +6,7 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 
 ## Current Phase
 
-**P7 — Combat Presentation** ✅ Complete · **Next phase not yet defined**
+**Post-P7 — Weapon Presentation Refresh** ✅ Complete · **Next phase not yet defined**
 
 ## Module Status
 
@@ -15,7 +15,7 @@ A simple FPS game built with TypeScript + Vite + Three.js. See `plan.md` for ful
 | core/ | ✅ Done | Engine, EventBus, InputManager |
 | scene/ | ✅ Done | SceneBase, SceneManager, MainArena |
 | player/ | ✅ Done | FPSCamera, Movement, Player |
-| weapons/ | ✅ Done | WeaponBase, Rifle, centered RMB ADS, WeaponView |
+| weapons/ | ✅ Done | WeaponBase, Rifle, centered RMB ADS, modular sci-fi rifle model, reload animation, shell ejection |
 | combat/ | ✅ Done | RaycastShooter, DamageSystem, CoverSystem, layered hit effects |
 | enemies/ | ✅ Done | Tactical range control, strafing, sight memory, suppression cover, detailed models and weapons |
 | pickups/ | ✅ Done | Randomized map/drop ammo, PickupBase, AmmoPickup, PickupSpawner, spawn/amount rules |
@@ -121,10 +121,31 @@ npm run build      # Type-check + build, no errors
 | 2026-09-04 | Collider debug starts hidden | The Backquote diagnostic remains available while the default presentation is clean enough for normal play |
 | 2026-09-04 | Factory art direction is bright stylized low-poly | A supplied railway/coastal FPS reference informed the high-key sky, pastel concrete, simplified silhouettes, green backdrop, and teal/yellow accents without copying its UI or branding |
 | 2026-09-04 | ScenicBackdrop owns non-gameplay set dressing | Distant hills, clustered trees, clouds, a coastal water plane, service railway, railcar, and catenary remain raycast-transparent and are disposed with MainArena |
-| 2026-09-04 | ADS is a run-owned camera/weapon presentation system | RMB emits one typed aim state, smoothly narrows FOV to 50°, centers the sight, and resets on pause, death, or unload without changing shot damage/cadence |
+| 2026-09-04 | ADS is a run-owned camera/weapon presentation system | RMB emits one typed aim state, smoothly narrows FOV to 45°, centers the sight, and resets on pause, death, or unload without changing shot damage/cadence |
 | 2026-09-04 | Radar consumes transform events only | HUD projects typed player/enemy positions into player-local space and removes blips on death/dispose without holding enemy instances |
 | 2026-09-04 | Hit feedback is a dedicated transient system | Configured cores, rings, and ballistic sparks freeze with gameplay and release every geometry/material on expiry or restart |
 | 2026-09-04 | Small factory props are decorative | Barrels, pallets, cones, cable reel, and cabinets enrich composition while remaining raycast-transparent to avoid changing verified collision and cover behavior |
+| 2026-09-05 | First-person rifle presentation is split into model, animation, and shell systems | Keeps metallic sci-fi geometry, moving reload parts, recoil/ADS poses, and bounded casing lifecycles independently maintainable behind `WeaponView` events |
+| 2026-09-05 | ADS uses a raised open holographic window on the exact camera axis | The complete sight opening remains unobstructed by the receiver and centers the HUD crosshair geometrically |
+| 2026-09-05 | Platform grounding uses contact tolerance and a circular footprint | Prevents tiny floating-point drift at a box top from entering the side-penetration branch and pushing the player off elevated surfaces |
+
+## Post-P7 Weapon Presentation Verification
+
+- `npm run build` — passed on 2026-09-05 (`tsc` strict + Vite production build).
+- `npm run test:p4`, `npm run test:p5`, `npm run test:p6`, and `npm run test:p7` — passed with the existing gameplay, lifecycle, and presentation checks intact.
+- Local automated weapon showcase confirmed readable gunmetal highlights, cyan energy accents, a visible staged magazine swap, bolt-rack finish, and bounded spinning brass ejection.
+- Local ADS showcase confirmed the settled HUD crosshair is centered inside the complete open optic window; the platform contact scenario remained grounded without horizontal displacement for 300 simulated frames.
+- Pointer Lock remained unavailable to automated browser input, so final in-game timing remains in the manual list.
+
+## Post-P7 Weapon Presentation Manual Test Steps
+
+1. Start a run and inspect hip fire and ADS; confirm the dark gunmetal receiver, brighter machined edges, cyan rails, optic, and angular armor remain readable against the bright yard.
+2. Fire single shots and short bursts; confirm one brass casing exits the right-side port per shot, tumbles outward, falls, fades, and never blocks raycasts.
+3. Spend at least one round and press R; confirm the rifle moves into view, the magazine drops out, a replacement inserts, and the side bolt cycles before ammo updates.
+4. Pause during a reload or while casings are visible; confirm animation time freezes, then resumes without duplicate magazines or casings.
+5. Repeat fire, reload, ADS, pause, and restart cycles; confirm one event response per action and no retained weapon meshes, materials, or casing objects.
+6. Hold RMB until the ADS transition settles; confirm the crosshair sits in the geometric center of the unobstructed holographic window at multiple viewport sizes.
+7. Jump onto the 2 m training box and other reachable raised solids, release movement, and confirm the player remains stationary instead of being pushed toward the nearest edge.
 
 ## P7 Verification
 

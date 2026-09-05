@@ -8,7 +8,7 @@ assert.ok(GameConfig.WEAPON.ADS_FOV >= 40);
 assert.ok(GameConfig.WEAPON.ADS_TRANSITION_SPEED > 0);
 assert.equal(GameConfig.WEAPON.HIP_POSITION.length, 3);
 assert.equal(GameConfig.WEAPON.ADS_POSITION[0], 0);
-assert.ok(Math.abs(GameConfig.WEAPON.ADS_POSITION[1] + 0.105) < 0.001);
+assert.ok(Math.abs(GameConfig.WEAPON.ADS_POSITION[1] + GameConfig.WEAPON.OPTIC_CENTER_Y) < 0.001);
 
 const ahead = RadarMath.project(0, -24, 0, -1, 48, 67);
 assert.ok(Math.abs(ahead.x) < 0.001);
